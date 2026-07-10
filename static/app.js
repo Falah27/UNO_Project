@@ -194,6 +194,16 @@
     triggerExtremeEffect(ev);
   }
 
+  const EXTREME_EFFECT_BIGTEXT = {
+    "Swap Rotasi": "SWAP!",
+    "+2 Skip": "+2 SKIP!",
+    "+2 Reverse": "+2 REVERSE!",
+    "Curi": "KARTU DICURI!",
+    "Bom Waktu Pass": "BOM DIOPER!",
+    "Bom Waktu Explode": "BOOM!",
+    "Recall": "RECALL!",
+  };
+
   function triggerExtremeEffect(ev) {
     const layer = $("extremeEffectLayer");
     if (!layer) return;
@@ -214,12 +224,54 @@
     layer.appendChild(toast);
     setTimeout(() => toast.remove(), 2400);
 
+    const bigText = document.createElement("div");
+    bigText.className = "ext-fx-bigtext ext-fx-bigtext-" + slug;
+    bigText.textContent = EXTREME_EFFECT_BIGTEXT[ev.kind] || ev.kind.toUpperCase();
+    layer.appendChild(bigText);
+    setTimeout(() => bigText.remove(), 1300);
+
     if (ev.kind === "Bom Waktu Explode") {
       const stage = $("screen-game");
       if (stage) {
         stage.classList.add("screen-shake");
         setTimeout(() => stage.classList.remove("screen-shake"), 450);
       }
+    }
+
+    if (ev.kind === "Swap Rotasi") {
+      triggerSwapBurst(layer);
+      const handRow = $("handRow");
+      if (handRow) {
+        handRow.classList.add("hand-swapping");
+        setTimeout(() => handRow.classList.remove("hand-swapping"), 480);
+      }
+    }
+  }
+
+  function triggerSwapBurst(layer) {
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight * 0.42;
+    const count = 14;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+      const dist = 140 + Math.random() * 90;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      const particle = document.createElement("div");
+      particle.className = "ext-fx-swap-particle";
+      particle.textContent = "🔀";
+      particle.style.left = centerX + "px";
+      particle.style.top = centerY + "px";
+      layer.appendChild(particle);
+      particle.animate(
+        [
+          { transform: "translate(-50%, -50%) scale(0.3) rotate(0deg)", opacity: 0 },
+          { transform: `translate(calc(-50% + ${dx * 0.4}px), calc(-50% + ${dy * 0.4}px)) scale(1.1) rotate(180deg)`, opacity: 1, offset: 0.35 },
+          { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.6) rotate(360deg)`, opacity: 0 },
+        ],
+        { duration: 900 + Math.random() * 300, easing: "cubic-bezier(.2,.8,.3,1)" }
+      );
+      setTimeout(() => particle.remove(), 1300);
     }
   }
 
@@ -597,7 +649,7 @@
     renderTopCardAndHistory(state);
     $("deckCount").textContent = state.deck_count + " kartu";
     renderHand(state);
-    renderStash(state);
+    // renderStash(state);
     renderClashButton(state);
     renderColorPicker(state);
     renderStealPicker(state);
@@ -787,6 +839,16 @@
       handRow.appendChild(el);
     });
 
+    const stash = state.your_stash || [];
+    stash.forEach((item) => {
+      const stashEl = buildStashHandCardEl(item, myTurn);
+      stashEl.addEventListener("click", () => {
+        if (!isMyTurnFree(state)) return;
+        onUseStashClick(item, state);
+      });
+      handRow.appendChild(stashEl);
+    });
+
     $("drawBtn").style.display = myTurn ? "inline-block" : "none";
     $("drawBtn").onclick = () => { clearSelection(); send({ type: "draw_card" }); };
 
@@ -888,56 +950,72 @@
 
   const STASH_NEEDS_TARGET = ["Curi", "Bom Waktu", "Recall"];
 
-  function buildStashCardEl(item) {
+  function buildStashHandCardEl(item, clickable) {
     const el = document.createElement("div");
-    el.className = "stash-card stash-" + item.kind.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    const slug = item.kind.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    el.className = "card stash-inline stash-" + slug + (clickable ? " playable" : " disabled-stash");
     const label = STASH_LABELS[item.kind] || item.kind;
-    el.innerHTML = `<div class="stash-label">${label}</div>`;
+    el.innerHTML = `<div class="val stash-inline-label">${label}</div>`;
     if (item.kind === "Bom Waktu" && item.turns_left !== null && item.turns_left !== undefined) {
       const badge = document.createElement("div");
       badge.className = "stash-timer";
       badge.textContent = item.turns_left;
       el.appendChild(badge);
-      if (item.turns_left <= 1) {
-        el.classList.add("critical");
-      }
+      if (item.turns_left <= 1) el.classList.add("critical");
     }
     return el;
   }
 
-  function renderStash(state) {
-    const row = $("stashRow");
-    row.innerHTML = "";
-    const stash = state.your_stash || [];
-    if (!state.extreme_mode || stash.length === 0) {
-      row.style.display = "none";
-      return;
-    }
-    row.style.display = "flex";
+  // function buildStashCardEl(item) {
+  //   const el = document.createElement("div");
+  //   el.className = "stash-card stash-" + item.kind.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  //   const label = STASH_LABELS[item.kind] || item.kind;
+  //   el.innerHTML = `<div class="stash-label">${label}</div>`;
+  //   if (item.kind === "Bom Waktu" && item.turns_left !== null && item.turns_left !== undefined) {
+  //     const badge = document.createElement("div");
+  //     badge.className = "stash-timer";
+  //     badge.textContent = item.turns_left;
+  //     el.appendChild(badge);
+  //     if (item.turns_left <= 1) {
+  //       el.classList.add("critical");
+  //     }
+  //   }
+  //   return el;
+  // }
 
-    const label = document.createElement("div");
-    label.className = "stash-row-label";
-    label.textContent = "STASH";
-    row.appendChild(label);
+  // function renderStash(state) {
+  //   const row = $("stashRow");
+  //   row.innerHTML = "";
+  //   const stash = state.your_stash || [];
+  //   if (!state.extreme_mode || stash.length === 0) {
+  //     row.style.display = "none";
+  //     return;
+  //   }
+  //   row.style.display = "flex";
 
-    const myTurn = isMyTurnFree(state);
+  //   const label = document.createElement("div");
+  //   label.className = "stash-row-label";
+  //   label.textContent = "STASH";
+  //   row.appendChild(label);
 
-    stash.forEach((item) => {
-      const wrap = document.createElement("div");
-      wrap.className = "stash-item";
-      const cardEl = buildStashCardEl(item);
-      wrap.appendChild(cardEl);
+  //   const myTurn = isMyTurnFree(state);
 
-      const btn = document.createElement("button");
-      btn.className = "btn btn-small stash-use-btn";
-      btn.textContent = "PAKAI";
-      btn.disabled = !myTurn;
-      btn.addEventListener("click", () => onUseStashClick(item, state));
-      wrap.appendChild(btn);
+  //   stash.forEach((item) => {
+  //     const wrap = document.createElement("div");
+  //     wrap.className = "stash-item";
+  //     const cardEl = buildStashCardEl(item);
+  //     wrap.appendChild(cardEl);
 
-      row.appendChild(wrap);
-    });
-  }
+  //     const btn = document.createElement("button");
+  //     btn.className = "btn btn-small stash-use-btn";
+  //     btn.textContent = "PAKAI";
+  //     btn.disabled = !myTurn;
+  //     btn.addEventListener("click", () => onUseStashClick(item, state));
+  //     wrap.appendChild(btn);
+
+  //     row.appendChild(wrap);
+  //   });
+  // }
 
   function onUseStashClick(item, state) {
     if (STASH_NEEDS_TARGET.includes(item.kind)) {
@@ -952,34 +1030,22 @@
     const overlay = $("targetPickerOverlay");
     const optionsWrap = $("targetPickerOptions");
 
-    // FIX: Recall kebetulan ikut lolos ke sini (juga anggota
-    // STASH_NEEDS_TARGET), tapi sebelumnya judul & filter kandidatnya cuma
-    // dibedakan untuk Curi vs "selain Curi" (dianggap otomatis Bom Waktu).
-    // Akibatnya waktu pakai Recall: (1) judul salah nampilin teks Bom Waktu,
-    // dan (2) daftar kandidatnya ikut filter Bom Waktu (pemain yang MASIH
-    // AKTIF main), padahal Recall justru butuh target yang SUDAH SELESAI
-    // (finished) - persis validasi di engine.py use_stash_item(). Makanya
-    // Recall kelihatan "nyasar ke pemain yang masih ada".
-    let title;
     let candidates;
-    if (item.kind === "Curi") {
-      title = "Curi kartu dari siapa?";
-      candidates = (state.players || []).filter((p) => p.id !== myPlayerId && !p.is_finished);
-    } else if (item.kind === "Bom Waktu") {
-      title = "Oper Bom Waktu ke siapa?";
-      candidates = (state.players || []).filter((p) => p.id !== myPlayerId && !p.is_finished);
-    } else if (item.kind === "Recall") {
-      title = "Recall pemain mana?";
+    if (item.kind === "Recall") {
+      $("targetPickerTitle").textContent = "Recall siapa? (cuma bisa 1x per pemain)";
       candidates = (state.players || []).filter(
-        (p) => p.id !== myPlayerId && p.is_finished && (p.connected || p.is_bot)
+        (p) => p.id !== myPlayerId && p.is_finished && !p.recall_used
       );
     } else {
-      title = "Pilih target";
-      candidates = [];
+      $("targetPickerTitle").textContent = item.kind === "Curi"
+        ? "Curi kartu dari siapa?"
+        : "Oper Bom Waktu ke siapa?";
+      candidates = (state.players || []).filter(
+        (p) => p.id !== myPlayerId && !p.is_finished
+      );
     }
-    $("targetPickerTitle").textContent = title;
-    optionsWrap.innerHTML = "";
 
+    optionsWrap.innerHTML = "";
     if (candidates.length === 0) {
       optionsWrap.innerHTML = '<p class="waiting-text">Tidak ada target yang valid.</p>';
     }
@@ -1008,12 +1074,6 @@
     const wrap = $("clashBtnWrap");
     wrap.innerHTML = "";
     const me = (state.players || []).find((p) => p.id === myPlayerId);
-    // FITUR BARU: CLASH sekarang wajib sebelum kartu terakhir bisa
-    // dimainkan, jadi tombolnya harus tetap muncul berdasar kartu kita
-    // sendiri (card_count===1 & belum CLASH) - bukan cuma waktu kita
-    // kebetulan pegang slot "pending_uno_player_id" global (itu cuma buat
-    // timer penalti telat, bisa kelewat kalau ada >1 pemain nyangkut di 1
-    // kartu bersamaan, misal gara-gara Swap Rotasi).
     const needClash = me && !me.is_finished && me.card_count === 1 && !me.uno_called && !state.game_over;
     if (needClash) {
       const btn = document.createElement("button");

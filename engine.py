@@ -39,7 +39,7 @@ EXTREME_CARD_COPIES = {
     "Recall": 3,
     "Bom Waktu": 1,
 }  
-RECALL_START_CARDS = 4
+RECALL_START_CARDS = 2
 BOM_WAKTU_TURNS = 5
 
 
@@ -140,6 +140,7 @@ class Player:
         # sini, terpisah dari hand biasa. Tiap item: {"id", "kind", "turns_left"}.
         # "turns_left" cuma dipakai Bom Waktu (None untuk kartu lain).
         self.stash = []
+        self.recall_used = False
 
     def draw_card(self, deck, amount=1):
         """Menarik `amount` kartu dari deck. Kartu Extreme TIDAK masuk ke
@@ -266,12 +267,14 @@ class GameRoom:
         return existed
 
     def mark_lobby_disconnected(self, player_id):
-        if player_id in self.lobby_players:
-            self.lobby_players[player_id]["connected"] = False
-        if self.leader_id == player_id:
-            self.leader_id = self._pick_new_leader()
         if self.started:
+            if player_id in self.lobby_players:
+                self.lobby_players[player_id]["connected"] = False
+            if self.leader_id == player_id:
+                self.leader_id = self._pick_new_leader()
             self.mark_player_disconnected(player_id)
+            return
+        self.remove_lobby_player(player_id)
 
     def mark_lobby_reconnected(self, player_id):
         if player_id in self.lobby_players:
@@ -527,7 +530,10 @@ class GameRoom:
                 if any(p.player_id != player.player_id and self.is_player_active(p) for p in self.players):
                     return True
             elif kind == "Recall":
-                if any(p.player_id != player.player_id and p.finished and (p.connected or p.is_bot) for p in self.players):
+                if any(
+                    p.player_id != player.player_id and p.finished and not p.recall_used and (p.connected or p.is_bot)
+                    for p in self.players
+                ):
                     return True
             else:
                 return True
@@ -812,9 +818,10 @@ class GameRoom:
                     target is None
                     or target.player_id == player_id
                     or not target.finished
+                    or target.recall_used
                     or (not target.connected and not target.is_bot)
                 ):
-                    self.message = "Pilih pemain selesai yang valid untuk Recall."
+                    self.message = "Pemain itu tidak bisa di-Recall lagi (sudah pernah dipakai / belum selesai)."
                     return False
             elif target is None or target.player_id == player_id or not self.is_player_active(target):
                 self.message = "Pilih target lawan yang valid dulu."
@@ -1007,10 +1014,8 @@ class GameRoom:
         target.finished = False
         target.uno_called = False
         target.hand = []
+        target.recall_used = True  
         target.draw_card(self.deck, RECALL_START_CARDS)
-        # FIX: winner_id sempat nyangkut ke pemain yang baru di-Recall kalau dia
-        # kebetulan finished_order[0] - hitung ulang biar selalu akurat.
-        self.winner_id = self.finished_order[0] if self.finished_order else None
         self.message = f"{player.name} pakai RECALL! {target.name} ikut main lagi dengan {RECALL_START_CARDS} kartu."
     
     def choose_number_color(self, player_id, color):
@@ -1181,6 +1186,8 @@ class GameRoom:
         for player in self.players:
             if not player.stash:
                 continue
+            if player.finished:
+                continue
             remaining = []
             exploded = False
             for item in player.stash:
@@ -1261,7 +1268,7 @@ class GameRoom:
             ]
             finished_recallable = [
                 p for p in self.players
-                if p.player_id != current.player_id and p.finished and (p.connected or p.is_bot)
+                if p.player_id != current.player_id and p.finished and not p.recall_used and (p.connected or p.is_bot)
             ]
 
             usable_items = []
@@ -1329,6 +1336,7 @@ class GameRoom:
                         (it["turns_left"] for it in p.stash if it["kind"] == "Bom Waktu"),
                         None,
                     ),
+                    "recall_used": p.recall_used,
                 }
                 for p in self.players
             ],

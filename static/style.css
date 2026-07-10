@@ -442,61 +442,6 @@ button {
 .hand-row .card { margin-left: -18px; }
 .hand-row .card:first-child { margin-left: 0; }
 
-/* FITUR BARU: MODE EXTREME - panel Stash. STATIS: position:fixed supaya
-   posisinya gak ikut geser waktu jumlah/lebar kartu di tangan berubah
-   (sebelumnya ikut flex bareng hand-row jadi ikut geser kiri-kanan).
-   Ditaruh di kanan layar, sejajar vertikal dengan hand-row. */
-.hand-and-stash-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 98vw;
-}
-.stash-row {
-  position: fixed;
-  right: 10px;
-  bottom: 108px;
-  z-index: 9;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  max-height: 42vh;
-  overflow-y: auto;
-  padding: 8px 6px;
-  background: rgba(0,0,0,0.2);
-  border-radius: 14px;
-}
-.stash-row-label {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  color: #ffd98a;
-  text-align: center;
-  margin-bottom: -2px;
-}
-.stash-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.stash-card {
-  width: 54px; height: 76px;
-  border-radius: 9px;
-  position: relative;
-  display: flex; align-items: center; justify-content: center;
-  text-align: center;
-  padding: 3px;
-  font-weight: 800;
-  font-size: 10.5px;
-  border: 3px solid rgba(0,0,0,0.65);
-  box-shadow: 0 4px 0 rgba(0,0,0,0.35), 0 6px 12px rgba(0,0,0,0.35);
-  background: linear-gradient(165deg, #4a2d78, #241344);
-  color: var(--white);
-  text-shadow: -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000;
-}
-.stash-card.stash-swaprotasi { background: linear-gradient(165deg, #4173dc, #1c3f80); }
-.stash-card.stash-2skip { background: linear-gradient(165deg, #ea6b6b, #8f1f1f); }
-.stash-card.stash-2reverse { background: linear-gradient(165deg, #41b45f, #175c2a); }
-.stash-card.stash-curi { background: linear-gradient(165deg, #ebcd46, #8a6c0c); color: #221c04; text-shadow: -1px 0 0 #fff8dc, 1px 0 0 #fff8dc, 0 -1px 0 #fff8dc, 0 1px 0 #fff8dc; }
-.stash-card.stash-bomwaktu { background: linear-gradient(165deg, #ff5a5a, #6e0d0d); animation: bombPulse 1s ease-in-out infinite; }
-.stash-card.stash-recall { background: linear-gradient(165deg, #f7f7ff, #7b68ee); color: #1b1640; text-shadow: -1px 0 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, 0 1px 0 #fff; }
 @keyframes bombPulse {
   0%, 100% { box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 8px 14px rgba(0,0,0,0.35); }
   50% { box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 0 16px 4px rgba(255,60,60,0.7); }
@@ -985,4 +930,100 @@ button {
 @keyframes timerCriticalPulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.22); }
+}
+
+/* ---------------- STASH MENYATU DI TANGAN ---------------- */
+.card.stash-inline {
+  display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 6px;
+  color: var(--white);
+  text-shadow: -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000;
+  background: linear-gradient(165deg, #4a2d78, #241344);
+}
+.card.stash-inline .stash-inline-label {
+  font-size: 12px;
+  line-height: 1.25;
+}
+.card.stash-inline.disabled-stash { opacity: 0.55; }
+
+.card.stash-inline.stash-swaprotasi { background: linear-gradient(165deg, #4173dc, #1c3f80); }
+.card.stash-inline.stash-2skip { background: linear-gradient(165deg, #ea6b6b, #8f1f1f); }
+.card.stash-inline.stash-2reverse { background: linear-gradient(165deg, #41b45f, #175c2a); }
+.card.stash-inline.stash-curi {
+  background: linear-gradient(165deg, #ebcd46, #8a6c0c);
+  color: #221c04;
+  text-shadow: -1px 0 0 #fff8dc, 1px 0 0 #fff8dc, 0 -1px 0 #fff8dc, 0 1px 0 #fff8dc;
+}
+.card.stash-inline.stash-bomwaktu {
+  background: linear-gradient(165deg, #ff5a5a, #6e0d0d);
+  animation: bombPulse 1s ease-in-out infinite;
+}
+.card.stash-inline.stash-bomwaktu.critical {
+  animation: bombPulseCritical 0.5s ease-in-out infinite;
+  border-color: #ffdc5a;
+}
+.card.stash-inline.stash-bomwaktu.critical .stash-timer {
+  background: #ff2b2b;
+  animation: timerCriticalPulse 0.5s ease-in-out infinite;
+}
+@keyframes timerCriticalPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.22); }
+}
+.card.stash-inline.stash-recall {
+  background: linear-gradient(165deg, #f7f7ff, #7b68ee);
+  color: #1b1640;
+  text-shadow: -1px 0 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, 0 1px 0 #fff;
+}
+
+/* Hand "tersentak" sebentar saat Swap Rotasi kena giliranmu. */
+@keyframes handSwapShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-14px) rotate(-1deg); }
+  50% { transform: translateX(10px) rotate(1deg); }
+  75% { transform: translateX(-6px); }
+}
+.hand-row.hand-swapping { animation: handSwapShake 0.45s ease; }
+
+/* ---------------- TEKS BESAR POP-IN (efek kartu spesial) ---------------- */
+.ext-fx-bigtext {
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.2) rotate(-6deg);
+  font-size: 58px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 18px rgba(0,0,0,0.6), 0 6px 0 rgba(0,0,0,0.4);
+  -webkit-text-stroke: 2px rgba(0,0,0,0.55);
+  opacity: 0;
+  z-index: 60;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: fxBigTextPop 1.2s cubic-bezier(.17,.87,.3,1.3) forwards;
+}
+@keyframes fxBigTextPop {
+  0% { transform: translate(-50%, -50%) scale(0.15) rotate(-10deg); opacity: 0; }
+  15% { opacity: 1; }
+  45% { transform: translate(-50%, -50%) scale(1.25) rotate(4deg); opacity: 1; }
+  60% { transform: translate(-50%, -50%) scale(1) rotate(-2deg); }
+  80% { transform: translate(-50%, -50%) scale(1.05) rotate(0deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.1) rotate(0deg); opacity: 0; }
+}
+.ext-fx-bigtext-swaprotasi { color: #8fb4ff; }
+.ext-fx-bigtext-2skip { color: #ff9d9d; }
+.ext-fx-bigtext-2reverse { color: #8ff0a4; }
+.ext-fx-bigtext-curi { color: #ffe98a; }
+.ext-fx-bigtext-bombpass { color: #ffb27a; }
+.ext-fx-bigtext-bombexplode { color: #ff5a3c; font-size: 68px; }
+.ext-fx-bigtext-recall { color: #cfc8ff; }
+
+/* Partikel ledakan khusus Swap Rotasi */
+.ext-fx-swap-particle {
+  position: fixed;
+  font-size: 22px;
+  z-index: 56;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
