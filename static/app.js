@@ -951,14 +951,35 @@
     pendingStashId = item.id;
     const overlay = $("targetPickerOverlay");
     const optionsWrap = $("targetPickerOptions");
-    $("targetPickerTitle").textContent = item.kind === "Curi"
-      ? "Curi kartu dari siapa?"
-      : "Oper Bom Waktu ke siapa?";
+
+    // FIX: Recall kebetulan ikut lolos ke sini (juga anggota
+    // STASH_NEEDS_TARGET), tapi sebelumnya judul & filter kandidatnya cuma
+    // dibedakan untuk Curi vs "selain Curi" (dianggap otomatis Bom Waktu).
+    // Akibatnya waktu pakai Recall: (1) judul salah nampilin teks Bom Waktu,
+    // dan (2) daftar kandidatnya ikut filter Bom Waktu (pemain yang MASIH
+    // AKTIF main), padahal Recall justru butuh target yang SUDAH SELESAI
+    // (finished) - persis validasi di engine.py use_stash_item(). Makanya
+    // Recall kelihatan "nyasar ke pemain yang masih ada".
+    let title;
+    let candidates;
+    if (item.kind === "Curi") {
+      title = "Curi kartu dari siapa?";
+      candidates = (state.players || []).filter((p) => p.id !== myPlayerId && !p.is_finished);
+    } else if (item.kind === "Bom Waktu") {
+      title = "Oper Bom Waktu ke siapa?";
+      candidates = (state.players || []).filter((p) => p.id !== myPlayerId && !p.is_finished);
+    } else if (item.kind === "Recall") {
+      title = "Recall pemain mana?";
+      candidates = (state.players || []).filter(
+        (p) => p.id !== myPlayerId && p.is_finished && (p.connected || p.is_bot)
+      );
+    } else {
+      title = "Pilih target";
+      candidates = [];
+    }
+    $("targetPickerTitle").textContent = title;
     optionsWrap.innerHTML = "";
 
-    const candidates = (state.players || []).filter(
-      (p) => p.id !== myPlayerId && !p.is_finished
-    );
     if (candidates.length === 0) {
       optionsWrap.innerHTML = '<p class="waiting-text">Tidak ada target yang valid.</p>';
     }
