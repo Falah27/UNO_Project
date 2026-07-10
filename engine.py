@@ -31,9 +31,16 @@ VALUES = [
 # biasa. Pemain memilih sendiri kapan mau memakainya, tapi cuma di giliran
 # sendiri, sebagai pengganti aksi normal (main kartu / tarik kartu).
 EXTREME_KINDS = ["Swap Rotasi", "+2 Skip", "+2 Reverse", "Curi", "Bom Waktu", "Recall"]
-EXTREME_COPIES_PER_PACK = 2  # tiap jenis, berapa lembar per pack special kalau extreme mode aktif
+EXTREME_CARD_COPIES = {
+    "Swap Rotasi": 2,
+    "+2 Skip": 2,
+    "+2 Reverse": 2,
+    "Curi": 3,
+    "Recall": 3,
+    "Bom Waktu": 1,
+}  
 RECALL_START_CARDS = 4
-BOM_WAKTU_TURNS = 3
+BOM_WAKTU_TURNS = 5
 
 
 def now_ms():
@@ -98,7 +105,8 @@ class Deck:
             if self.extreme_mode:
                 for _extreme_pack in range(self.extreme_pack_count):
                     for kind in EXTREME_KINDS:
-                        for _ in range(EXTREME_COPIES_PER_PACK):
+                        copies = EXTREME_CARD_COPIES.get(kind, 2)
+                        for _ in range(copies):
                             self.cards.append(Card("Extreme", kind))
 
     def shuffle(self):
@@ -186,11 +194,19 @@ class GameRoom:
         self.number_color_player_id = None
         self.pending_number_value = None
         self.pending_number_color_options = []
+        
+        self.awaiting_steal_pick = False
+        self.steal_player_id = None
+        self.steal_target_id = None
+        self.steal_pick_deadline_ms = 0
 
         self.finished_order = []
 
         self.pending_uno_player_id = None
         self.pending_uno_deadline_ms = 0
+        self.uno_timeout_ms = 4000
+
+        self.pending_uno_deadlines = {}  # {player_id: deadline_ms}
         self.uno_timeout_ms = 4000
 
         self.pack_count = 1
@@ -393,7 +409,7 @@ class GameRoom:
         self.started = True
 
         self.pending_uno_player_id = None
-        self.pending_uno_deadline_ms = 0
+        self.pending_uno_deadlines = {}
 
         self.awaiting_wild_color = False
         self.wild_player_id = None
@@ -401,6 +417,10 @@ class GameRoom:
         self.number_color_player_id = None
         self.pending_number_value = None
         self.pending_number_color_options = []
+
+        self.awaiting_steal_pick = False
+        self.steal_player_id = None
+        self.steal_target_id = None
 
         # FITUR BARU: id sesi game, naik tiap kali game baru benar2 dimulai
         # (start awal maupun rematch). Dipakai frontend buat tahu "ini game
@@ -433,7 +453,12 @@ class GameRoom:
         self.awaiting_number_color = False
         self.number_color_player_id = None
         self.pending_uno_player_id = None
-        self.pending_uno_deadline_ms = 0
+
+        self.awaiting_steal_pick = False
+        self.steal_player_id = None
+        self.steal_target_id = None
+
+        self.pending_uno_deadlines = {}
         self.message = "Kembali ke lobby."
 
     # ---------------- HELPERS ----------------
@@ -474,7 +499,7 @@ class GameRoom:
                 moved += 1
             safety += 1
         self.message = f"Giliran {self.current_player().name}."
-        self._tick_bomb(self.current_player())
+        self._tick_all_bombs()
 
     def finish_game_if_needed(self):
         active = self.active_players()
@@ -493,11 +518,23 @@ class GameRoom:
     def has_playable_card(self, player):
         return any(c.can_play_on(self.top_card, self.current_color) for c in player.hand)
 
+    def _has_usable_stash_item(self, player):
+        if not player.stash:
+            return False
+        for item in player.stash:
+            kind = item["kind"]
+            if kind in ("Curi", "Bom Waktu"):
+                if any(p.player_id != player.player_id and self.is_player_active(p) for p in self.players):
+                    return True
+            elif kind == "Recall":
+                if any(p.player_id != player.player_id and p.finished and (p.connected or p.is_bot) for p in self.players):
+                    return True
+            else:
+                return True
+        return False
+
     def has_any_action(self, player):
-        # FITUR BARU: MODE EXTREME. Punya kartu di stash juga dihitung
-        # sebagai "bisa bertindak", supaya tidak otomatis dipaksa narik kartu
-        # sebelum sempat pakai kartu extreme yang sudah dipegang.
-        return self.has_playable_card(player) or len(player.stash) > 0
+        return self.has_playable_card(player) or self._has_usable_stash_item(player)
 
     def ensure_current_player_can_act(self):
         """FITUR BARU: kalau giliran seorang pemain mulai dan dia benar-benar
@@ -510,6 +547,7 @@ class GameRoom:
             not self.game_over
             and not self.awaiting_wild_color
             and not self.awaiting_number_color
+            and not self.awaiting_steal_pick
             and self.players
             and safety < limit
         ):
@@ -537,18 +575,13 @@ class GameRoom:
             return
         if len(player.hand) == 1:
             if getattr(player, "is_bot", False):
-                # Bot selalu "ingat" CLASH sendiri, tidak pernah kena penalti.
                 player.uno_called = True
-                self.pending_uno_player_id = None
-                self.pending_uno_deadline_ms = 0
+                self.pending_uno_deadlines.pop(player.player_id, None)
             else:
                 player.uno_called = False
-                self.pending_uno_player_id = player.player_id
-                self.pending_uno_deadline_ms = now_ms() + self.uno_timeout_ms
+                self.pending_uno_deadlines[player.player_id] = now_ms() + self.uno_timeout_ms
         else:
-            if self.pending_uno_player_id == player.player_id:
-                self.pending_uno_player_id = None
-                self.pending_uno_deadline_ms = 0
+            self.pending_uno_deadlines.pop(player.player_id, None)
             player.uno_called = False
 
     def call_clash(self, player_id):
@@ -566,28 +599,50 @@ class GameRoom:
         # kebetulan lagi pegang slot pending itu.
         player.uno_called = True
         if self.pending_uno_player_id == player_id:
-            self.pending_uno_player_id = None
-            self.pending_uno_deadline_ms = 0
+            self.pending_uno_deadlines.pop(player_id, None)
         self.message = f"{player.name} klik CLASH!"
         return True
 
     def check_uno_timeout(self):
-        if self.pending_uno_player_id is None or self.game_over:
+        if not self.pending_uno_deadlines or self.game_over:
             return False
-        if now_ms() < self.pending_uno_deadline_ms:
+        now = now_ms()
+        expired = [pid for pid, dl in self.pending_uno_deadlines.items() if now >= dl]
+        if not expired:
             return False
-        player = self.get_player(self.pending_uno_player_id)
-        self.pending_uno_player_id = None
-        self.pending_uno_deadline_ms = 0
-        if player is None or player.finished:
-            return False
-        if len(player.hand) == 1 and not player.uno_called:
-            player.draw_card(self.deck, 1)
-            player.uno_called = False
-            self.message = f"{player.name} kelewatan CLASH! Kena +1 kartu."
-            return True
-        return False
+        changed = False
+        for pid in expired:
+            self.pending_uno_deadlines.pop(pid, None)
+            player = self.get_player(pid)
+            if player is None or player.finished:
+                continue
+            if len(player.hand) == 1 and not player.uno_called:
+                player.draw_card(self.deck, 1)
+                player.uno_called = False
+                self.message = f"{player.name} kelewatan CLASH! Kena +1 kartu."
+                changed = True
+        return changed
 
+    def check_steal_pick_timeout(self):
+        """STABILITY FIX: kalau pemain yang sedang milih kartu curian tidak
+        klik apa-apa (misal karena bug UI di client, atau dia AFK), server
+        otomatis pilihkan kartu acak setelah timeout - supaya game TIDAK
+        BISA macet selamanya menunggu 1 klik yang tidak pernah datang."""
+        if not self.awaiting_steal_pick or self.game_over:
+            return False
+        if now_ms() < self.steal_pick_deadline_ms:
+            return False
+        player = self.get_player(self.steal_player_id)
+        target = self.get_player(self.steal_target_id)
+        if player is None or target is None or not target.hand:
+            self.awaiting_steal_pick = False
+            self.steal_player_id = None
+            self.steal_target_id = None
+            return False
+        idx = random.randrange(len(target.hand))
+        self._finish_steal(player, target, idx)
+        return True
+    
     def can_act(self, player_id):
         if self.game_over:
             self.message = "Game sudah selesai."
@@ -604,6 +659,9 @@ class GameRoom:
             return False
         if self.awaiting_number_color:
             self.message = "Menunggu pemilihan warna top card."
+            return False
+        if self.awaiting_steal_pick:
+            self.message = "Menunggu kartu curian dipilih."
             return False
         if self.current_player().player_id != player_id:
             self.message = "Bukan giliranmu."
@@ -774,9 +832,19 @@ class GameRoom:
         elif kind == "+2 Reverse":
             self._apply_plus2_reverse(player)
         elif kind == "Curi":
-            self._apply_steal(player, target)
-            self._emit_event("Curi", actor=player, target=target)
-            self.advance_turn(1)
+            if not target.hand:
+                # Tidak ada kartu buat dicuri - batalkan, jangan hanguskan item.
+                player.stash.append(item)
+                self.message = f"{target.name} tidak punya kartu untuk dicuri."
+                return False
+            # FITUR BARU: bukan langsung dieksekusi - tunggu pemain pilih
+            # sendiri 1 dari kartu tertutup milik target lewat pick_steal_card().
+            self.awaiting_steal_pick = True
+            self.steal_player_id = player_id
+            self.steal_target_id = target.player_id
+            self.steal_pick_deadline_ms = now_ms() + 8000
+            self.message = f"{player.name} sedang memilih kartu curian dari {target.name}..."
+            return True
         elif kind == "Bom Waktu":
             self._apply_bomb_pass(player, target)
             self._emit_event("Bom Waktu Pass", actor=player, target=target)
@@ -795,7 +863,29 @@ class GameRoom:
 
         self.ensure_current_player_can_act()
         return True
+    
+    def pick_steal_card(self, player_id, card_index):
+            """FITUR BARU: langkah ke-2 dari Curi. Dipanggil saat pemain klik
+            salah satu kartu tertutup milik target."""
+            if self.game_over:
+                return False
+            if not self.awaiting_steal_pick or self.steal_player_id != player_id:
+                self.message = "Tidak ada proses Curi yang sedang berlangsung."
+                return False
+            target = self.get_player(self.steal_target_id)
+            player = self.get_player(player_id)
+            if target is None or player is None:
+                self.awaiting_steal_pick = False
+                self.steal_player_id = None
+                self.steal_target_id = None
+                return False
+            if not isinstance(card_index, int) or not (0 <= card_index < len(target.hand)):
+                self.message = "Pilihan kartu tidak valid."
+                return False
 
+            self._finish_steal(player, target, card_index)
+            return True
+    
     def _emit_event(self, kind, actor=None, target=None):
         """FITUR BARU: catat kejadian pemakaian kartu Extreme (atau ledakan
         Bom Waktu) supaya frontend semua pemain bisa nampilin animasi efek
@@ -867,7 +957,7 @@ class GameRoom:
             self.current_player_index = target_idx
             self.message = f"{player.name} pakai +2 Reverse! {target.name} kena +2. Giliran {target.name}."
             self._emit_event("+2 Reverse", actor=player, target=target)
-            self._tick_bomb(target)
+            self._tick_all_bombs()
             return
 
         self.direction *= -1
@@ -881,22 +971,27 @@ class GameRoom:
         self.current_player_index = target_idx
         self.message = f"{player.name} pakai +2 Reverse! Arah berbalik, {target.name} kena +2. Giliran {target.name}."
         self._emit_event("+2 Reverse", actor=player, target=target)
-        self._tick_bomb(target)
+        self._tick_all_bombs()
 
-    def _apply_steal(self, player, target):
-        if not target.hand:
-            self.message = f"{target.name} tidak punya kartu untuk dicuri."
-            return
-        idx = random.randrange(len(target.hand))
-        stolen = target.hand.pop(idx)
+    def _finish_steal(self, player, target, card_index):
+        """Eksekusi Curi setelah pemain benar2 pilih posisi kartu (buta -
+        dia cuma lihat sisi belakang) dari tangan target."""
+        stolen = target.hand.pop(card_index)
         player.hand.append(stolen)
         self.message = f"{player.name} mencuri 1 kartu dari {target.name}!"
+        self._emit_event("Curi", actor=player, target=target)
+
+        self.awaiting_steal_pick = False
+        self.steal_player_id = None
+        self.steal_target_id = None
+
         if len(target.hand) == 0:
-            # Kartu terakhir target kecuri - dianggap selesai juga (kehabisan
-            # kartu tetap kehabisan kartu, walau bukan karena dia yang main).
             self.finish_winner(target)
         else:
             self.start_uno_check_if_needed(target)
+
+        self.advance_turn(1)
+        self.ensure_current_player_can_act()
 
     def _apply_bomb_pass(self, player, target):
         target.stash.append({
@@ -907,16 +1002,17 @@ class GameRoom:
         self.message = f"{player.name} mengoper Bom Waktu ke {target.name}!"
 
     def _apply_recall(self, player, target):
-        # RECALL: ajak pemain yang sudah selesai untuk bermain lagi.
-        # Dia mulai ulang dengan 4 kartu dan keluar dari daftar ranking sementara.
         if target.player_id in self.finished_order:
             self.finished_order.remove(target.player_id)
         target.finished = False
         target.uno_called = False
         target.hand = []
         target.draw_card(self.deck, RECALL_START_CARDS)
+        # FIX: winner_id sempat nyangkut ke pemain yang baru di-Recall kalau dia
+        # kebetulan finished_order[0] - hitung ulang biar selalu akurat.
+        self.winner_id = self.finished_order[0] if self.finished_order else None
         self.message = f"{player.name} pakai RECALL! {target.name} ikut main lagi dengan {RECALL_START_CARDS} kartu."
-
+    
     def choose_number_color(self, player_id, color):
         if self.game_over:
             return False
@@ -1020,8 +1116,7 @@ class GameRoom:
         self.pending_number_color_options = []
 
         if self.pending_uno_player_id == player.player_id:
-            self.pending_uno_player_id = None
-            self.pending_uno_deadline_ms = 0
+            self.pending_uno_deadlines.pop(player.player_id, None)
         player.uno_called = False
 
         if self.finish_game_if_needed():
@@ -1044,8 +1139,7 @@ class GameRoom:
         self.message = f"{player.name} terputus koneksi."
 
         if self.pending_uno_player_id == player_id:
-            self.pending_uno_player_id = None
-            self.pending_uno_deadline_ms = 0
+            self.pending_uno_deadlines.pop(player_id, None)
 
         if self.awaiting_wild_color and self.wild_player_id == player_id:
             self.awaiting_wild_color = False
@@ -1057,6 +1151,18 @@ class GameRoom:
             self.number_color_player_id = None
             self.pending_number_value = None
             self.pending_number_color_options = []
+
+        if self.awaiting_steal_pick and self.steal_player_id == player_id:
+            self.awaiting_steal_pick = False
+            self.steal_player_id = None
+            self.steal_target_id = None
+            self.message = "Proses Curi dibatalkan (pemain terputus)."
+
+        if self.awaiting_steal_pick and self.steal_target_id == player_id:
+            self.awaiting_steal_pick = False
+            self.steal_player_id = None
+            self.steal_target_id = None
+            self.message = "Curi dibatalkan, target terputus koneksi."
 
         if self.finish_game_if_needed():
             return
@@ -1071,27 +1177,24 @@ class GameRoom:
             if len(self.top_card_history) > 6:
                 self.top_card_history.pop(0)
 
-    def _tick_bomb(self, player):
-        """FITUR BARU: MODE EXTREME. Dipanggil setiap kali giliran BARU sampai
-        ke seorang pemain - kalau dia lagi pegang Bom Waktu di stash-nya,
-        hitungan mundurnya berkurang 1. Kalau habis sebelum sempat dioper ke
-        orang lain, meledak: pemegangnya otomatis kena +5 kartu."""
-        if player is None or not player.stash:
-            return
-        remaining = []
-        exploded = False
-        for item in player.stash:
-            if item["kind"] == "Bom Waktu" and item.get("turns_left") is not None:
-                item["turns_left"] -= 1
-                if item["turns_left"] <= 0:
-                    player.draw_card(self.deck, 5)
-                    exploded = True
-                    continue
-            remaining.append(item)
-        player.stash = remaining
-        if exploded:
-            self.message = f"\U0001F4A3 Bom Waktu milik {player.name} meledak! Kena +5 kartu."
-            self._emit_event("Bom Waktu Explode", actor=player)
+    def _tick_all_bombs(self):
+        for player in self.players:
+            if not player.stash:
+                continue
+            remaining = []
+            exploded = False
+            for item in player.stash:
+                if item["kind"] == "Bom Waktu" and item.get("turns_left") is not None:
+                    item["turns_left"] -= 1
+                    if item["turns_left"] <= 0:
+                        player.draw_card(self.deck, 5)
+                        exploded = True
+                        continue
+                remaining.append(item)
+            player.stash = remaining
+            if exploded:
+                self.message = f"\U0001F4A3 Bom Waktu milik {player.name} meledak! Kena +5 kartu."
+                self._emit_event("Bom Waktu Explode", actor=player)
 
     # ---------------- BOT AI ----------------
     # FITUR BARU: main vs bot. Bot dipanggil dari server secara berkala
@@ -1113,7 +1216,16 @@ class GameRoom:
     def maybe_run_bot_turn(self):
         if self.game_over or not self.players:
             return False
-
+        
+        if self.awaiting_steal_pick:
+            player = self.get_player(self.steal_player_id)
+            if player is not None and player.is_bot:
+                target = self.get_player(self.steal_target_id)
+                if target is not None and target.hand:
+                    idx = random.randrange(len(target.hand))
+                    return self.pick_steal_card(player.player_id, idx)
+            return False
+        
         if self.awaiting_wild_color:
             player = self.get_player(self.wild_player_id)
             if player is not None and player.is_bot:
@@ -1143,17 +1255,36 @@ class GameRoom:
         # tidak) main kartu normal tapi punya kartu di stash, pakai salah
         # satu daripada cuma narik kartu terus.
         if current.stash:
-            item = random.choice(current.stash)
-            if item["kind"] in ("Curi", "Bom Waktu"):
-                candidates = [
-                    p for p in self.players
-                    if p.player_id != current.player_id and self.is_player_active(p)
-                ]
-                if candidates:
-                    target = random.choice(candidates)
+            opponents_active = [
+                p for p in self.players
+                if p.player_id != current.player_id and self.is_player_active(p)
+            ]
+            finished_recallable = [
+                p for p in self.players
+                if p.player_id != current.player_id and p.finished and (p.connected or p.is_bot)
+            ]
+
+            usable_items = []
+            for it in current.stash:
+                if it["kind"] in ("Curi", "Bom Waktu"):
+                    if opponents_active:
+                        usable_items.append(it)
+                elif it["kind"] == "Recall":
+                    if finished_recallable:
+                        usable_items.append(it)
+                else:
+                    usable_items.append(it)  # Swap Rotasi - tidak butuh target
+
+            if usable_items:
+                item = random.choice(usable_items)
+                if item["kind"] in ("Curi", "Bom Waktu"):
+                    target = random.choice(opponents_active)
                     return self.use_stash_item(current.player_id, item["id"], target.player_id)
-            else:
-                return self.use_stash_item(current.player_id, item["id"])
+                elif item["kind"] == "Recall":
+                    target = random.choice(finished_recallable)
+                    return self.use_stash_item(current.player_id, item["id"], target.player_id)
+                else:
+                    return self.use_stash_item(current.player_id, item["id"])
 
         # Jaga-jaga (harusnya nyaris tidak pernah kesampaian):
         return self.draw_card(current.player_id)
@@ -1194,6 +1325,10 @@ class GameRoom:
                     "rank": (self.finished_order.index(p.player_id) + 1) if p.player_id in self.finished_order else None,
                     "uno_called": p.uno_called,
                     "is_bot": p.is_bot,
+                    "bomb_turns_left": next(
+                        (it["turns_left"] for it in p.stash if it["kind"] == "Bom Waktu"),
+                        None,
+                    ),
                 }
                 for p in self.players
             ],
@@ -1215,6 +1350,10 @@ class GameRoom:
             "deck_count": len(self.deck.cards),
             "pack_count": self.pack_count,
             "cards_each": self.cards_each,
-            "pending_uno_player_id": self.pending_uno_player_id,
-            "uno_timeout_remaining": max(0, self.pending_uno_deadline_ms - now_ms()) if self.pending_uno_player_id is not None else 0,
+            # "pending_uno_player_id": self.pending_uno_player_id,
+            # "uno_timeout_remaining": max(0, self.pending_uno_deadline_ms - now_ms()) if self.pending_uno_player_id is not None else 0,
+            "awaiting_steal_pick": self.awaiting_steal_pick,
+            "steal_pick_remaining_ms": max(0, self.steal_pick_deadline_ms - now_ms()) if self.awaiting_steal_pick else 0,
+            "steal_player_id": self.steal_player_id,
+            "steal_target_id": self.steal_target_id,
         }

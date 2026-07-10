@@ -26,63 +26,73 @@
 </div>
 
 <div id="screen-lobby" class="screen">
-  <div class="lobby-card">
+  <div class="lobby-card lobby-card-wide">
     <h2>Lobby</h2>
 
-    <div class="my-name-row">
-      <label>Nama kamu</label>
-      <div class="my-name-edit">
-        <input id="myNameInput" type="text" maxlength="20" autocomplete="off">
-        <button id="saveNameBtn" class="btn btn-small">SIMPAN</button>
+    <div class="lobby-columns">
+      <!-- KOLOM KIRI: identitas + settingan room -->
+      <div class="lobby-col-left">
+        <div class="my-name-row">
+          <label>Nama kamu</label>
+          <div class="my-name-edit">
+            <input id="myNameInput" type="text" maxlength="20" autocomplete="off">
+            <button id="saveNameBtn" class="btn btn-small">SIMPAN</button>
+          </div>
+        </div>
+
+        <div id="leaderSettings" class="leader-settings" style="display:none;">
+          <div class="setting-row">
+            <label>Jumlah deck</label>
+            <div class="stepper" data-target="pack_count">
+              <button class="step-btn" data-dir="-1">-</button>
+              <span class="step-value" id="packVal">1</span>
+              <button class="step-btn" data-dir="1">+</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label>Kartu awal / pemain</label>
+            <div class="stepper" data-target="cards_each">
+              <button class="step-btn" data-dir="-1">-</button>
+              <span class="step-value" id="cardsVal">7</span>
+              <button class="step-btn" data-dir="1">+</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label>Jumlah Bot <span class="hint-small">(tambah bot)</span></label>
+            <div class="stepper" data-target="bot_count">
+              <button class="step-btn" data-dir="-1">-</button>
+              <span class="step-value" id="botVal">0</span>
+              <button class="step-btn" data-dir="1">+</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label>Mode Game <span class="hint-small">(kartu spesial)</span></label>
+            <div class="mode-toggle" id="modeToggle">
+              <button class="mode-btn active" data-mode="normal">NORMAL</button>
+              <button class="mode-btn" data-mode="extreme">EXTREME</button>
+            </div>
+          </div>
+          <div class="setting-row" id="extremePackSetting" style="display:none;">
+            <label>Paket kartu spesial <span class="hint-small">(Extreme)</span></label>
+            <div class="stepper" data-target="extreme_pack_count">
+              <button class="step-btn" data-dir="-1">-</button>
+              <span class="step-value" id="extremePackVal">1</span>
+              <button class="step-btn" data-dir="1">+</button>
+            </div>
+          </div>
+          <button id="startBtn" class="btn btn-primary">MULAI GAME</button>
+        </div>
+        <p id="waitingText" class="waiting-text" style="display:none;">Menunggu leader memulai game...</p>
+        <p id="modeIndicatorText" class="mode-indicator-text" style="display:none;"></p>
+      </div>
+
+      <!-- KOLOM KANAN: daftar pemain -->
+      <div class="lobby-col-right">
+        <h3 class="lobby-players-title">Pemain</h3>
+        <div id="lobbyPlayers" class="lobby-players"></div>
       </div>
     </div>
 
-    <div id="lobbyPlayers" class="lobby-players"></div>
-
-    <div id="leaderSettings" class="leader-settings" style="display:none;">
-      <div class="setting-row">
-        <label>Jumlah deck</label>
-        <div class="stepper" data-target="pack_count">
-          <button class="step-btn" data-dir="-1">-</button>
-          <span class="step-value" id="packVal">1</span>
-          <button class="step-btn" data-dir="1">+</button>
-        </div>
-      </div>
-      <div class="setting-row">
-        <label>Kartu awal / pemain</label>
-        <div class="stepper" data-target="cards_each">
-          <button class="step-btn" data-dir="-1">-</button>
-          <span class="step-value" id="cardsVal">7</span>
-          <button class="step-btn" data-dir="1">+</button>
-        </div>
-      </div>
-      <div class="setting-row">
-        <label>Jumlah Bot <span class="hint-small">(tambah bot)</span></label>
-        <div class="stepper" data-target="bot_count">
-          <button class="step-btn" data-dir="-1">-</button>
-          <span class="step-value" id="botVal">0</span>
-          <button class="step-btn" data-dir="1">+</button>
-        </div>
-      </div>
-      <div class="setting-row">
-        <label>Mode Game <span class="hint-small">(kartu spesial)</span></label>
-        <div class="mode-toggle" id="modeToggle">
-          <button class="mode-btn active" data-mode="normal">NORMAL</button>
-          <button class="mode-btn" data-mode="extreme">EXTREME</button>
-        </div>
-      </div>
-      <div class="setting-row" id="extremePackSetting" style="display:none;">
-        <label>Paket kartu spesial <span class="hint-small">(Extreme)</span></label>
-        <div class="stepper" data-target="extreme_pack_count">
-          <button class="step-btn" data-dir="-1">-</button>
-          <span class="step-value" id="extremePackVal">1</span>
-          <button class="step-btn" data-dir="1">+</button>
-        </div>
-      </div>
-      <button id="startBtn" class="btn btn-primary">MULAI GAME</button>
-    </div>
-    <p id="waitingText" class="waiting-text" style="display:none;">Menunggu leader memulai game...</p>
-    <p id="modeIndicatorText" class="mode-indicator-text" style="display:none;"></p>
     <button id="quitLobbyBtn" class="btn btn-quit">KELUAR</button>
   </div>
 </div>
@@ -142,6 +152,13 @@
       <h3 id="targetPickerTitle">Pilih Target</h3>
       <div id="targetPickerOptions" class="target-options"></div>
       <button id="cancelTargetBtn" class="btn btn-small">BATAL</button>
+    </div>
+  </div>
+
+  <div id="stealPickerOverlay" class="overlay" style="display:none;">
+    <div class="picker-panel">
+      <h3 id="stealPickerTitle">Pilih Kartu</h3>
+      <div id="stealPickerCards" class="steal-picker-cards"></div>
     </div>
   </div>
 

@@ -89,6 +89,7 @@ def uno_timeout_watcher():
         with room_lock:
             if room.started and not room.game_over:
                 changed = room.check_uno_timeout()
+                changed = room.check_steal_pick_timeout() or changed
         if changed:
             broadcast_game()
 
@@ -207,6 +208,11 @@ def handle_message(player_id, data):
                 target_player_id = data.get("target_player_id")
                 if isinstance(stash_id, str):
                     room.use_stash_item(player_id, stash_id, target_player_id)
+                    do_broadcast_game = True
+            elif msg_type == "pick_steal_card":
+                idx = data.get("card_index")
+                if isinstance(idx, int):
+                    room.pick_steal_card(player_id, idx)
                     do_broadcast_game = True
 
     # Broadcast di luar lock (lihat catatan STABILITY FIX di atas).

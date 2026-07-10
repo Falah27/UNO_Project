@@ -600,6 +600,7 @@
     renderStash(state);
     renderClashButton(state);
     renderColorPicker(state);
+    renderStealPicker(state);
     renderGameOver(state);
     checkCelebrations(state);
     checkExtremeEffect(state);
@@ -668,6 +669,12 @@
       if (p.is_current_turn) cls += " turn";
       if (p.is_finished) cls += " finished";
       if (!p.connected) cls += " offline";
+
+      const hasBomb = p.bomb_turns_left !== null && p.bomb_turns_left !== undefined;
+      if (hasBomb) {
+        cls += " has-bomb";
+        if (p.bomb_turns_left <= 1) cls += " bomb-critical";
+      }
       chip.className = cls;
       chip.dataset.playerId = String(p.id);
 
@@ -676,10 +683,15 @@
       else if (!p.connected) badge = "Offline";
       else if (p.uno_called && p.card_count === 1) badge = "CLASH!";
 
+      const bombBadge = hasBomb
+        ? `<div class="pc-bomb-badge">\u{1F4A3} ${p.bomb_turns_left}</div>`
+        : "";
+
       chip.innerHTML = `
         <div class="pc-name">${p.is_you ? "&#9679; " : ""}${escapeHtml(p.name)}</div>
         <div class="pc-count">${p.card_count} kartu</div>
         ${badge ? `<div class="pc-badge">${badge}</div>` : ""}
+        ${bombBadge}
       `;
       row.appendChild(chip);
     });
@@ -749,7 +761,8 @@
       !state.game_over &&
       state.current_player_id === myPlayerId &&
       !state.awaiting_wild_color &&
-      !state.awaiting_number_color
+      !state.awaiting_number_color &&
+      !state.awaiting_steal_pick
     );
   }
 
@@ -885,6 +898,9 @@
       badge.className = "stash-timer";
       badge.textContent = item.turns_left;
       el.appendChild(badge);
+      if (item.turns_left <= 1) {
+        el.classList.add("critical");
+      }
     }
     return el;
   }
@@ -1035,6 +1051,37 @@
       });
       optionsWrap.appendChild(btn);
     });
+  }
+
+  // FITUR BARU: Curi 2 langkah - setelah target dipilih, tampilkan sejumlah
+  // kartu tertutup (terbalik) sebanyak kartu di tangan target, biar pemain
+  // sendiri yang klik salah satunya (buta, tidak tahu isinya).
+  function renderStealPicker(state) {
+    const overlay = $("stealPickerOverlay");
+    if (!overlay) return;
+
+    if (!state.awaiting_steal_pick || state.steal_player_id !== myPlayerId) {
+      overlay.style.display = "none";
+      return;
+    }
+
+    overlay.style.display = "flex";
+    const target = (state.players || []).find((p) => p.id === state.steal_target_id);
+    const count = target ? target.card_count : 0;
+    $("stealPickerTitle").textContent = target
+      ? `Pilih 1 kartu dari tangan ${target.name}`
+      : "Pilih kartu";
+
+    const wrap = $("stealPickerCards");
+    wrap.innerHTML = "";
+    for (let i = 0; i < count; i++) {
+      const el = buildBackCardEl(false);
+      el.classList.add("steal-pick-card");
+      el.addEventListener("click", () => {
+        send({ type: "pick_steal_card", card_index: i });
+      });
+      wrap.appendChild(el);
+    }
   }
 
   function renderGameOver(state) {
