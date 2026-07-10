@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clash of Card</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div id="disconnectBanner" class="disconnect-banner">
+  <div class="disconnect-box">
+    <p>Koneksi ke host terputus.</p>
+    <button id="reconnectBtn" class="btn btn-primary btn-small">MUAT ULANG</button>
+  </div>
+</div>
+
+<div id="screen-join" class="screen active">
+  <div class="join-card">
+    <h1 class="brand">CLASH <span>of</span> CARD</h1>
+    <p class="brand-sub">-- by JOSJIS --</p>
+    <input id="nameInput" type="text" maxlength="20" placeholder="Nama kamu..." autocomplete="off">
+    <button id="joinBtn" class="btn btn-primary">GABUNG</button>
+    <p id="joinError" class="error-text"></p>
+  </div>
+</div>
+
+<div id="screen-lobby" class="screen">
+  <div class="lobby-card">
+    <h2>Lobby</h2>
+
+    <div class="my-name-row">
+      <label>Nama kamu</label>
+      <div class="my-name-edit">
+        <input id="myNameInput" type="text" maxlength="20" autocomplete="off">
+        <button id="saveNameBtn" class="btn btn-small">SIMPAN</button>
+      </div>
+    </div>
+
+    <div id="lobbyPlayers" class="lobby-players"></div>
+
+    <div id="leaderSettings" class="leader-settings" style="display:none;">
+      <div class="setting-row">
+        <label>Jumlah deck</label>
+        <div class="stepper" data-target="pack_count">
+          <button class="step-btn" data-dir="-1">-</button>
+          <span class="step-value" id="packVal">1</span>
+          <button class="step-btn" data-dir="1">+</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Kartu awal / pemain</label>
+        <div class="stepper" data-target="cards_each">
+          <button class="step-btn" data-dir="-1">-</button>
+          <span class="step-value" id="cardsVal">7</span>
+          <button class="step-btn" data-dir="1">+</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Jumlah Bot <span class="hint-small">(tambah bot)</span></label>
+        <div class="stepper" data-target="bot_count">
+          <button class="step-btn" data-dir="-1">-</button>
+          <span class="step-value" id="botVal">0</span>
+          <button class="step-btn" data-dir="1">+</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Mode Game <span class="hint-small">(kartu spesial)</span></label>
+        <div class="mode-toggle" id="modeToggle">
+          <button class="mode-btn active" data-mode="normal">NORMAL</button>
+          <button class="mode-btn" data-mode="extreme">EXTREME</button>
+        </div>
+      </div>
+      <div class="setting-row" id="extremePackSetting" style="display:none;">
+        <label>Paket kartu spesial <span class="hint-small">(Extreme)</span></label>
+        <div class="stepper" data-target="extreme_pack_count">
+          <button class="step-btn" data-dir="-1">-</button>
+          <span class="step-value" id="extremePackVal">1</span>
+          <button class="step-btn" data-dir="1">+</button>
+        </div>
+      </div>
+      <button id="startBtn" class="btn btn-primary">MULAI GAME</button>
+    </div>
+    <p id="waitingText" class="waiting-text" style="display:none;">Menunggu leader memulai game...</p>
+    <p id="modeIndicatorText" class="mode-indicator-text" style="display:none;"></p>
+    <button id="quitLobbyBtn" class="btn btn-quit">KELUAR</button>
+  </div>
+</div>
+
+<div id="screen-game" class="screen">
+  <div class="table-bg"></div>
+
+  <div id="msgBar" class="msg-bar"></div>
+
+  <div id="opponentsRow" class="opponents-row"></div>
+
+  <div id="directionArrow" class="direction-arrow">
+    <svg viewBox="0 0 200 40" class="arrow-svg">
+      <path id="arrowPath" d="M6,20 H176" fill="none" stroke-width="4" stroke-dasharray="10 8"/>
+      <polygon id="arrowHead" points="170,7 196,20 170,33" />
+    </svg>
+  </div>
+
+  <button id="hintBtn" class="hint-btn" title="Cara main">?</button>
+  <button id="quitInGameBtn" class="quit-in-game-btn" title="Keluar">Keluar</button>
+
+  <div class="center-area">
+    <div id="historyStack" class="history-stack"></div>
+    <div id="topCardWrap" class="top-card-wrap"></div>
+    <div id="deckPile" class="deck-pile">
+      <div class="deck-card"></div>
+      <span id="deckCount" class="deck-count">0</span>
+    </div>
+  </div>
+
+  <div id="clashBtnWrap" class="clash-btn-wrap"></div>
+
+  <div class="bottom-area">
+    <div id="selectionBar" class="selection-bar" style="display:none;">
+      <span id="selectionText"></span>
+      <button id="confirmPlayBtn" class="btn btn-small btn-primary">MAINKAN</button>
+      <button id="cancelPlayBtn" class="btn btn-small">BATAL</button>
+    </div>
+    <div class="hand-and-stash-wrap">
+      <div id="handRow" class="hand-row"></div>
+      <div id="stashRow" class="stash-row" style="display:none;"></div>
+    </div>
+    <div class="action-row">
+      <button id="drawBtn" class="btn btn-draw">TARIK KARTU</button>
+    </div>
+  </div>
+
+  <div id="colorPickerOverlay" class="overlay" style="display:none;">
+    <div class="picker-panel">
+      <h3 id="colorPickerTitle">Pilih Warna</h3>
+      <div id="colorPickerOptions" class="color-options"></div>
+    </div>
+  </div>
+
+  <div id="targetPickerOverlay" class="overlay" style="display:none;">
+    <div class="picker-panel">
+      <h3 id="targetPickerTitle">Pilih Target</h3>
+      <div id="targetPickerOptions" class="target-options"></div>
+      <button id="cancelTargetBtn" class="btn btn-small">BATAL</button>
+    </div>
+  </div>
+
+  <div id="gameOverOverlay" class="overlay" style="display:none;">
+    <div class="picker-panel gameover-panel">
+      <h2 id="winnerText"></h2>
+      <div id="rankingList" class="ranking-list"></div>
+      <div id="leaderGameOverActions" class="gameover-actions" style="display:none;">
+        <button id="rematchBtn" class="btn btn-primary">REMATCH</button>
+        <button id="backToLobbyBtn" class="btn">BALIK KE LOBBY</button>
+      </div>
+      <p id="rematchWaitText" class="waiting-text" style="display:none;">Menunggu leader memilih rematch / balik lobby...</p>
+      <button id="quitGameBtn" class="btn btn-quit">KELUAR</button>
+    </div>
+  </div>
+
+  <div id="hintOverlay" class="overlay" style="display:none;">
+    <div class="picker-panel hint-panel">
+      <button id="closeHintBtn" class="close-x">&times;</button>
+      <h2>Cara Main</h2>
+      <div class="hint-scroll">
+        <ul class="hint-list">
+          <li>Setiap giliran, mainkan 1 kartu yang <strong>warnanya sama</strong> atau <strong>angka/simbolnya sama</strong> dengan kartu teratas.</li>
+          <li>Kalau punya beberapa kartu <strong>angka kembar</strong>, boleh dimainkan sekaligus - klik satu, lalu tambah kembarannya sebelum tekan MAINKAN.</li>
+          <li>Kalau nggak punya kartu valid, kamu otomatis dapat kartu baru (tidak perlu pencet tombol).</li>
+          <li>Sisa 1 kartu di tangan? Cepat klik tombol <strong>CLASH!</strong> yang muncul, atau kena penalti +1 kartu.</li>
+        </ul>
+        <h3>Jenis Kartu</h3>
+        <div class="hint-cards">
+          <div class="hint-card-row"><div class="card small red"><div class="val">5</div></div><span>Kartu <strong>angka (0-9)</strong> - main sesuai warna atau angka.</span></div>
+          <div class="hint-card-row"><div class="card small blue"><div class="val">SKIP</div></div><span><strong>Skip</strong> - giliran pemain berikutnya dilewati.</span></div>
+          <div class="hint-card-row"><div class="card small green"><div class="val">REV</div></div><span><strong>Reverse</strong> - arah giliran berbalik.</span></div>
+          <div class="hint-card-row"><div class="card small yellow"><div class="val">+2</div></div><span><strong>Draw Two</strong> - pemain berikutnya kena +2 kartu &amp; gilirannya dilewati.</span></div>
+          <div class="hint-card-row"><div class="card small wild"><div class="val">W</div></div><span><strong>Wild</strong> - boleh dimainkan kapan saja, pilih warna berikutnya.</span></div>
+          <div class="hint-card-row"><div class="card small wild"><div class="val">+4</div></div><span><strong>Wild +4</strong> - pilih warna, pemain berikutnya kena +4 kartu &amp; gilirannya dilewati.</span></div>
+        </div>
+        <div id="hintExtremeSection" style="display:none;">
+          <h3>Mode Extreme</h3>
+          <ul class="hint-list">
+            <li>Kartu spesial (bukan warna biasa) yang kamu tarik otomatis masuk ke <strong>Stash</strong> - terpisah dari tangan.</li>
+            <li>Di giliranmu sendiri, kamu bisa pakai 1 kartu Stash sebagai ganti main kartu / tarik kartu.</li>
+          </ul>
+          <div id="hintExtremeCards" class="ext-card-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="extremeIntroOverlay" class="overlay" style="display:none;">
+    <div class="picker-panel extreme-intro-panel">
+      <div class="extreme-intro-head">
+        <h2>⚡ MODE EXTREME AKTIF</h2>
+        <div class="extreme-intro-countdown" id="extremeIntroCountdown">5</div>
+      </div>
+      <p class="extreme-intro-sub">Kartu spesial ini bisa muncul di Stash-mu selama main. Kamu bisa buka lagi info ini kapan saja lewat tombol <strong>?</strong>.</p>
+      <div id="extremeIntroCards" class="ext-card-grid ext-card-grid-scroll"></div>
+      <button id="extremeIntroCloseBtn" class="btn btn-primary btn-small">MENGERTI</button>
+    </div>
+  </div>
+
+  <div id="extremeEffectLayer" class="extreme-effect-layer"></div>
+
+  <div id="celebrationLayer" class="celebration-layer"></div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,862 @@
+:root {
+  --red: #dc4141;
+  --blue: #4173dc;
+  --green: #41b45f;
+  --yellow: #ebcd46;
+  --gold: #ffdc5a;
+  --table-dark: #163d2c;
+  --table-light: #2a7355;
+  --card-back: #2d2d3c;
+  --white: #f5f5f5;
+  --black: #191919;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  background: #0e1f18;
+  color: var(--white);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.screen.active { display: flex; }
+
+/* ---------------- JOIN SCREEN ---------------- */
+
+#screen-join {
+  background: radial-gradient(circle at 50% 40%, var(--table-light), var(--table-dark) 75%);
+}
+
+.join-card {
+  background: rgba(15, 30, 24, 0.85);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 40px 44px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: fadeInUp 0.5s ease both;
+}
+
+.brand {
+  font-size: 34px;
+  letter-spacing: 2px;
+  margin: 0 0 4px;
+  text-shadow: 0 3px 0 rgba(0,0,0,0.4);
+}
+.brand span { color: var(--gold); font-weight: 300; }
+.brand-sub { color: #c8d8d0; margin: 0 0 26px; font-size: 14px; }
+
+#nameInput {
+  width: 260px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.08);
+  color: var(--white);
+  font-size: 15px;
+  outline: none;
+  margin-bottom: 16px;
+  transition: border-color 0.2s;
+}
+#nameInput:focus { border-color: var(--gold); }
+
+.error-text { color: #ff8080; font-size: 13px; min-height: 18px; margin-top: 10px; }
+
+/* ---------------- BUTTONS ---------------- */
+
+.btn {
+  padding: 13px 26px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 700;
+  font-size: 15px;
+  background: linear-gradient(180deg, #fff, #dcdcdc);
+  color: var(--black);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.35), 0 6px 12px rgba(0,0,0,0.25);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+.btn:hover { filter: brightness(1.08); transform: translateY(-2px); box-shadow: 0 6px 0 rgba(0,0,0,0.35), 0 10px 16px rgba(0,0,0,0.3); }
+.btn:active { transform: translateY(1px); box-shadow: 0 2px 0 rgba(0,0,0,0.35); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none; transform: none; }
+
+.btn-primary { background: linear-gradient(180deg, var(--gold), #e8b93a); }
+.btn-small { padding: 9px 16px; font-size: 13px; }
+.btn-draw {
+  background: linear-gradient(180deg, #ffffff, #cfd8d4);
+  padding: 14px 34px;
+  border-radius: 30px;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+}
+
+/* ---------------- LOBBY ---------------- */
+
+#screen-lobby { background: radial-gradient(circle at 50% 40%, var(--table-light), var(--table-dark) 75%); }
+
+.lobby-card {
+  background: rgba(15, 30, 24, 0.85);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 32px 40px;
+  min-width: 360px;
+  max-width: 92vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: fadeInUp 0.4s ease both;
+}
+.lobby-card h2 { margin: 0 0 18px; text-align: center; letter-spacing: 1px; }
+
+.lobby-players { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.lobby-player-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: background 0.2s;
+}
+.lobby-player-row.offline { opacity: 0.45; }
+.lobby-player-row .dot { width: 9px; height: 9px; border-radius: 50%; background: #4caf50; flex-shrink: 0; }
+.lobby-player-row.offline .dot { background: var(--red); }
+.lobby-player-row .crown { color: var(--gold); }
+.lobby-player-row .pname { flex: 1; font-size: 14px; }
+
+.leader-settings { display: flex; flex-direction: column; gap: 14px; margin-top: 6px; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+.stepper { display: flex; align-items: center; gap: 10px; }
+.step-btn {
+  width: 30px; height: 30px; border-radius: 8px; border: none;
+  background: rgba(255,255,255,0.15); color: var(--white); font-size: 16px; font-weight: 700;
+}
+.step-btn:hover { background: rgba(255,255,255,0.28); }
+.step-value { min-width: 20px; text-align: center; font-weight: 700; }
+
+.waiting-text { text-align: center; color: #d9e5df; font-size: 14px; margin-top: 10px; }
+.mode-indicator-text { text-align: center; color: #ffd98a; font-size: 13px; font-weight: 700; margin-top: 4px; }
+
+/* FITUR BARU: MODE EXTREME - toggle Normal/Extreme di lobby */
+.mode-toggle { display: flex; gap: 6px; }
+.mode-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.08);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.mode-btn.active { background: linear-gradient(180deg, #c04fd6, #7a2ea8); border-color: #e2a3f2; }
+.mode-btn[data-mode="extreme"].active { background: linear-gradient(180deg, #ff5a5a, #9a1414); border-color: #ffb3b3; }
+
+.my-name-row { margin-bottom: 16px; }
+.my-name-row label { display: block; font-size: 12px; color: #b9cac2; margin-bottom: 6px; }
+.my-name-edit { display: flex; gap: 8px; }
+.my-name-edit input {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.08);
+  color: var(--white);
+  font-size: 14px;
+  outline: none;
+}
+.my-name-edit input:focus { border-color: var(--gold); }
+
+.hint-small { font-weight: 400; font-size: 11px; color: #a8bdb4; }
+
+.btn-quit {
+  background: linear-gradient(180deg, #e07a7a, var(--red));
+  color: #fff;
+  margin-top: 14px;
+  width: 100%;
+}
+
+.gameover-actions { display: flex; gap: 10px; justify-content: center; margin-top: 4px; }
+
+.quit-in-game-btn {
+  position: absolute; top: 14px; right: 58px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  background: rgba(20,20,25,0.55);
+  color: #f0d0d0;
+  font-size: 12px;
+  font-weight: 700;
+  z-index: 7;
+}
+.quit-in-game-btn:hover { background: rgba(120,40,40,0.6); border-color: var(--red); }
+
+/* ---------------- GAME SCREEN ---------------- */
+
+#screen-game { overflow: hidden; }
+
+.table-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 50% 45%, var(--table-light) 0%, var(--table-dark) 78%);
+  z-index: 0;
+}
+
+.msg-bar {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  background: rgba(15,45,35,0.85);
+  border: 1.5px solid var(--gold);
+  border-radius: 12px;
+  padding: 9px 22px;
+  font-size: 13.5px;
+  z-index: 5;
+  max-width: 82vw;
+  text-align: center;
+  transition: opacity 0.2s;
+}
+
+.opponents-row {
+  position: absolute; top: 60px; left: 0; right: 0;
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 12px;
+  padding: 0 16px;
+  z-index: 4;
+}
+
+.player-chip {
+  background: rgba(20,20,25,0.55);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 14px;
+  padding: 8px 14px;
+  min-width: 110px;
+  text-align: center;
+  transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s ease;
+}
+.player-chip .pc-name { font-size: 12.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.player-chip .pc-count { font-size: 11px; color: #d5e3dc; margin-top: 2px; }
+.player-chip.turn {
+  border-color: var(--gold);
+  box-shadow: 0 0 18px rgba(255,220,90,0.55);
+  transform: translateY(-3px) scale(1.05);
+  background: rgba(60,50,10,0.55);
+}
+.player-chip.finished { border-color: #8a8a8a; opacity: 0.6; }
+.player-chip.offline { border-color: var(--red); opacity: 0.55; }
+.player-chip .pc-badge { font-size: 10px; margin-top: 2px; color: var(--gold); }
+
+.direction-arrow {
+  position: absolute; top: 116px; left: 50%; transform: translateX(-50%);
+  width: 220px; z-index: 3; opacity: 0.9;
+}
+.arrow-svg {
+  width: 100%; height: 24px; overflow: visible;
+  transition: transform 0.4s ease;
+}
+#arrowPath { stroke: var(--gold); animation: flowRight 0.9s linear infinite; }
+#arrowHead { fill: var(--gold); }
+/* FIX: dulu cuma garis putus-putus yang animasinya "kebalik", tapi segitiga
+   panahnya diam di tempat (malah sebelumnya nggak nempel ke ujung garis sama
+   sekali). Sekarang seluruh SVG (garis + kepala panah) di-mirror horizontal
+   sekaligus jadi satu kesatuan yang benar-benar konsisten berbalik arah. */
+.direction-arrow.reverse .arrow-svg { transform: scaleX(-1); }
+
+@keyframes flowRight { to { stroke-dashoffset: -36; } }
+
+.center-area {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -54%);
+  display: flex; align-items: center; gap: 28px;
+  z-index: 3;
+}
+
+.card {
+  width: 74px; height: 106px;
+  border-radius: 11px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800;
+  font-size: 26px;
+  box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 8px 14px rgba(0,0,0,0.35);
+  border: 3px solid rgba(0,0,0,0.65);
+  flex-shrink: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.card.small { width: 56px; height: 80px; font-size: 18px; border-radius: 9px; }
+.card .val { text-shadow: -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000; }
+.card .pip {
+  position: absolute; width: 78%; height: 62%; border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  transform: rotate(-18deg);
+}
+.card.red { background: linear-gradient(165deg, #ea6b6b, var(--red)); }
+.card.blue { background: linear-gradient(165deg, #6f96ee, var(--blue)); }
+.card.green { background: linear-gradient(165deg, #6fce89, var(--green)); }
+.card.yellow { background: linear-gradient(165deg, #f4de85, var(--yellow)); }
+.card.yellow .val { color: #2a2205; text-shadow: -1px 0 0 #fff8dc, 1px 0 0 #fff8dc, 0 -1px 0 #fff8dc, 0 1px 0 #fff8dc; }
+.card.wild { background: linear-gradient(135deg, var(--red) 25%, var(--yellow) 25% 50%, var(--green) 50% 75%, var(--blue) 75%); }
+/* FITUR BARU: begitu warna Wild sudah dipilih pemain, kartu teratas dirender
+   pakai warna solid pilihannya (bukan rainbow lagi) supaya jelas warna
+   berlaku sekarang apa. Tetap dikasih titik kecil rainbow di pojok biar
+   tetap kelihatan "aslinya ini kartu Wild". */
+.card.wild-colored::after {
+  content: "";
+  position: absolute; top: 6px; right: 6px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: conic-gradient(var(--red), var(--yellow), var(--green), var(--blue), var(--red));
+  border: 1.5px solid rgba(0,0,0,0.5);
+}
+.card.back {
+  background: repeating-linear-gradient(45deg, var(--card-back), var(--card-back) 8px, #3a2d55 8px, #3a2d55 16px);
+  display: flex; align-items: center; justify-content: center;
+}
+.card.back::after {
+  content: "";
+  width: 68%; height: 60%;
+  border-radius: 50%;
+  background: #4a2d78;
+  border: 2px solid rgba(255,255,255,0.7);
+}
+.card.playable { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,220,90,0.55), 0 5px 0 rgba(0,0,0,0.35), 0 8px 16px rgba(0,0,0,0.4); }
+.card.playable:hover { transform: translateY(-14px); }
+.card.selected { transform: translateY(-20px); box-shadow: 0 0 0 4px var(--gold), 0 5px 0 rgba(0,0,0,0.35), 0 10px 18px rgba(0,0,0,0.4); }
+
+.top-card-wrap { position: relative; }
+.top-card-wrap .card { width: 84px; height: 120px; font-size: 30px; }
+.top-card-wrap.pop .card { animation: popLand 0.38s cubic-bezier(.2,1.4,.4,1) both; }
+
+@keyframes popLand {
+  0% { transform: scale(0.4) rotate(-8deg); opacity: 0.2; }
+  60% { transform: scale(1.12) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* ANIMASI KARTU DILETAKKAN: clone kartu yang "terbang" dari tangan pemain
+   atau dari chip lawan/bot menuju tumpukan tengah saat kartu dimainkan.
+   Posisi awal, arah, dan durasi transisinya diatur langsung lewat inline
+   style di app.js (animateCardFly), CSS ini cuma memastikan clone-nya
+   melayang di atas semua elemen lain dan tidak mengganggu klik. */
+.flying-card {
+  z-index: 500;
+  pointer-events: none;
+  will-change: transform, opacity;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.45), 0 5px 0 rgba(0,0,0,0.35);
+}
+
+.history-stack { position: relative; width: 90px; height: 106px; }
+.history-stack .card {
+  position: absolute; top: 8px; left: 0;
+  width: 60px; height: 86px; font-size: 17px;
+  opacity: 0.92;
+  transition: left 0.35s ease, opacity 0.35s ease, transform 0.35s ease;
+}
+
+.deck-pile { position: relative; text-align: center; }
+.deck-card {
+  width: 74px; height: 106px; border-radius: 11px;
+  background: repeating-linear-gradient(45deg, var(--card-back), var(--card-back) 8px, #3a2d55 8px, #3a2d55 16px);
+  border: 3px solid rgba(0,0,0,0.65);
+  box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 8px 14px rgba(0,0,0,0.35);
+}
+.deck-count {
+  position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
+  font-size: 12px; color: #d5e3dc;
+}
+
+.clash-btn-wrap { position: absolute; inset: 0; pointer-events: none; z-index: 8; }
+.clash-btn {
+  position: absolute;
+  pointer-events: all;
+  padding: 16px 26px;
+  border-radius: 16px;
+  border: 4px solid var(--black);
+  font-weight: 900;
+  font-size: 17px;
+  color: var(--black);
+  animation: clashPulse 0.35s ease-in-out infinite alternate;
+}
+@keyframes clashPulse {
+  from { background: var(--gold); transform: scale(1); }
+  to { background: var(--red); color: #fff; transform: scale(1.08); }
+}
+
+.bottom-area {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  z-index: 6;
+  display: flex; flex-direction: column; align-items: center;
+  padding-bottom: 14px;
+}
+
+.selection-bar {
+  background: rgba(15,30,24,0.92);
+  border: 1.5px solid var(--gold);
+  border-radius: 12px;
+  padding: 8px 16px;
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  animation: fadeInUp 0.2s ease both;
+}
+
+.hand-row {
+  display: flex; justify-content: center; gap: -10px;
+  padding: 20px 10px 6px;
+  max-width: 96vw;
+  overflow-x: auto;
+}
+.hand-row .card { margin-left: -18px; }
+.hand-row .card:first-child { margin-left: 0; }
+
+/* FITUR BARU: MODE EXTREME - panel Stash. STATIS: position:fixed supaya
+   posisinya gak ikut geser waktu jumlah/lebar kartu di tangan berubah
+   (sebelumnya ikut flex bareng hand-row jadi ikut geser kiri-kanan).
+   Ditaruh di kanan layar, sejajar vertikal dengan hand-row. */
+.hand-and-stash-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 98vw;
+}
+.stash-row {
+  position: fixed;
+  right: 10px;
+  bottom: 108px;
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-height: 42vh;
+  overflow-y: auto;
+  padding: 8px 6px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 14px;
+}
+.stash-row-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffd98a;
+  text-align: center;
+  margin-bottom: -2px;
+}
+.stash-item { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.stash-card {
+  width: 54px; height: 76px;
+  border-radius: 9px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center;
+  padding: 3px;
+  font-weight: 800;
+  font-size: 10.5px;
+  border: 3px solid rgba(0,0,0,0.65);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.35), 0 6px 12px rgba(0,0,0,0.35);
+  background: linear-gradient(165deg, #4a2d78, #241344);
+  color: var(--white);
+  text-shadow: -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000;
+}
+.stash-card.stash-swaprotasi { background: linear-gradient(165deg, #4173dc, #1c3f80); }
+.stash-card.stash-2skip { background: linear-gradient(165deg, #ea6b6b, #8f1f1f); }
+.stash-card.stash-2reverse { background: linear-gradient(165deg, #41b45f, #175c2a); }
+.stash-card.stash-curi { background: linear-gradient(165deg, #ebcd46, #8a6c0c); color: #221c04; text-shadow: -1px 0 0 #fff8dc, 1px 0 0 #fff8dc, 0 -1px 0 #fff8dc, 0 1px 0 #fff8dc; }
+.stash-card.stash-bomwaktu { background: linear-gradient(165deg, #ff5a5a, #6e0d0d); animation: bombPulse 1s ease-in-out infinite; }
+.stash-card.stash-recall { background: linear-gradient(165deg, #f7f7ff, #7b68ee); color: #1b1640; text-shadow: -1px 0 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, 0 1px 0 #fff; }
+@keyframes bombPulse {
+  0%, 100% { box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 8px 14px rgba(0,0,0,0.35); }
+  50% { box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 0 16px 4px rgba(255,60,60,0.7); }
+}
+.stash-label { line-height: 1.2; }
+.stash-timer {
+  position: absolute; top: -8px; right: -8px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--black); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900;
+  border: 2px solid #ff5a5a;
+}
+.stash-use-btn { padding: 5px 10px; font-size: 11px; }
+
+.target-options { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; min-width: 220px; }
+.target-option-btn { width: 100%; }
+
+.action-row { margin-top: 4px; }
+
+/* ---------------- OVERLAYS ---------------- */
+
+.overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 20;
+  animation: fadeIn 0.2s ease both;
+}
+.picker-panel {
+  background: #f2f2f0;
+  color: var(--black);
+  border-radius: 18px;
+  padding: 26px 30px;
+  text-align: center;
+  min-width: 320px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  animation: fadeInUp 0.25s ease both;
+}
+.picker-panel h3, .picker-panel h2 { margin-top: 0; }
+.color-options { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; justify-content: center; }
+.color-swatch {
+  width: 92px; height: 62px; border-radius: 12px; border: 3px solid var(--black);
+  font-weight: 800; color: var(--black); font-size: 13px;
+}
+.color-swatch:hover { filter: brightness(1.1); transform: translateY(-2px); }
+.color-swatch.Red { background: var(--red); }
+.color-swatch.Blue { background: var(--blue); }
+.color-swatch.Green { background: var(--green); }
+.color-swatch.Yellow { background: var(--yellow); }
+
+.ranking-list { margin: 16px 0 20px; text-align: left; display: flex; flex-direction: column; gap: 8px; min-width: 240px; }
+.rank-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; border-radius: 12px;
+  background: rgba(0,0,0,0.055);
+  border: 1.5px solid transparent;
+  font-size: 14px; font-weight: 700; color: #2a2a2a;
+  animation: fadeInUp 0.35s ease both;
+}
+.rank-icon {
+  font-size: 21px; width: 28px; flex-shrink: 0;
+  text-align: center; line-height: 1;
+}
+.rank-name { flex: 1; }
+.rank-row.rank-first {
+  background: linear-gradient(90deg, rgba(255,220,90,0.4), rgba(255,220,90,0.1));
+  border-color: var(--gold);
+  font-size: 15.5px;
+  box-shadow: 0 3px 10px rgba(255,220,90,0.25);
+}
+.rank-row.rank-second {
+  background: linear-gradient(90deg, rgba(200,200,210,0.4), rgba(200,200,210,0.08));
+  border-color: #b9c0c6;
+}
+.rank-row.rank-third {
+  background: linear-gradient(90deg, rgba(205,150,100,0.35), rgba(205,150,100,0.08));
+  border-color: #c98a4b;
+}
+
+/* ---------------- ANIMS ---------------- */
+
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------------- MODE EXTREME: KARTU & POPUP INTRO ---------------- */
+
+.ext-card-grid { display: flex; flex-direction: column; gap: 10px; }
+.ext-card-grid-scroll { max-height: 46vh; overflow-y: auto; padding-right: 6px; margin-right: -6px; text-align: left; }
+
+.ext-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid rgba(0,0,0,0.65);
+  box-shadow: 0 4px 0 rgba(0,0,0,0.3), 0 6px 12px rgba(0,0,0,0.25);
+  color: var(--white);
+}
+.ext-card-icon {
+  flex-shrink: 0;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 21px;
+}
+.ext-card-body { text-align: left; }
+.ext-card-title { font-weight: 800; font-size: 13.5px; margin-bottom: 2px; }
+.ext-card-desc { font-size: 12px; line-height: 1.35; opacity: 0.92; }
+
+/* Skema gradien sama persis dengan .stash-card di stash pemain, supaya
+   tampilan kartu di panel hint/popup konsisten dengan kartu asli in-game. */
+.ext-card.ext-swaprotasi { background: linear-gradient(165deg, #4173dc, #1c3f80); }
+.ext-card.ext-2skip { background: linear-gradient(165deg, #ea6b6b, #8f1f1f); }
+.ext-card.ext-2reverse { background: linear-gradient(165deg, #41b45f, #175c2a); }
+.ext-card.ext-curi { background: linear-gradient(165deg, #ebcd46, #8a6c0c); color: #221c04; }
+.ext-card.ext-curi .ext-card-desc { color: #2c2408; }
+.ext-card.ext-bomwaktu { background: linear-gradient(165deg, #ff5a5a, #6e0d0d); }
+.ext-card.ext-recall { background: linear-gradient(165deg, #f7f7ff, #7b68ee); color: #1b1640; }
+.ext-card.ext-recall .ext-card-desc { color: #2a2456; }
+
+.extreme-intro-panel { max-width: 440px; text-align: left; }
+.extreme-intro-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
+.extreme-intro-head h2 { margin: 0; font-size: 19px; text-align: left; }
+.extreme-intro-countdown {
+  flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--black); color: var(--gold);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 14px;
+  animation: introTick 1s steps(1) infinite;
+}
+@keyframes introTick { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.extreme-intro-sub { font-size: 13px; line-height: 1.5; color: #444; margin: 6px 0 14px; }
+.extreme-intro-panel .btn { margin-top: 14px; width: 100%; }
+
+/* ---------------- MODE EXTREME: ANIMASI EFEK PEMAKAIAN KARTU ---------------- */
+
+.extreme-effect-layer {
+  position: fixed; inset: 0; pointer-events: none; z-index: 55;
+  overflow: hidden;
+}
+
+.ext-fx-toast {
+  position: fixed; top: 130px; left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 22px;
+  border-radius: 12px;
+  font-weight: 800; font-size: 13.5px;
+  color: var(--white);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.4);
+  opacity: 0;
+  animation: toastPop 2.2s ease forwards;
+  white-space: nowrap;
+  border: 2px solid rgba(0,0,0,0.5);
+}
+.ext-fx-toast-swaprotasi { background: linear-gradient(180deg, #5c8ff0, #2c4f9e); }
+.ext-fx-toast-2skip { background: linear-gradient(180deg, #f08a8a, #a02b2b); }
+.ext-fx-toast-2reverse { background: linear-gradient(180deg, #5fcf7d, #1f7c3a); }
+.ext-fx-toast-curi { background: linear-gradient(180deg, #f4de6b, #a3821a); color: #221c04; }
+.ext-fx-toast-bombpass { background: linear-gradient(180deg, #ff7a5a, #8a1e1e); }
+.ext-fx-toast-bombexplode { background: linear-gradient(180deg, #ff3b3b, #4a0000); }
+.ext-fx-toast-recall { background: linear-gradient(180deg, #ded9ff, #6a5acd); color: #1b1640; }
+
+.ext-fx-badge {
+  position: fixed; top: 40%; left: 50%;
+  width: 74px; height: 74px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  font-size: 34px;
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.15), 0 10px 30px rgba(0,0,0,0.5);
+}
+.ext-fx-icon { display: block; }
+
+/* Swap Rotasi: ikon berputar penuh sambil membesar-mengecil, ngasih kesan
+   "kartu-kartu berputar antar pemain". */
+.ext-fx-swaprotasi {
+  background: radial-gradient(circle, #5c8ff0, #1c3f80);
+  transform: translate(-50%, -50%) scale(0.4) rotate(0deg);
+  animation: fxSpin 1.5s cubic-bezier(.2,.8,.3,1) forwards;
+}
+@keyframes fxSpin {
+  0% { transform: translate(-50%, -50%) scale(0.3) rotate(0deg); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.15) rotate(360deg); opacity: 0; }
+}
+
+/* +2 Skip: "stempel" tanda larangan yang zoom-in lalu gemetar sebentar. */
+.ext-fx-2skip {
+  background: radial-gradient(circle, #f08a8a, #7a1f1f);
+  transform: translate(-50%, -50%) scale(0);
+  animation: fxStamp 1.4s ease forwards;
+}
+@keyframes fxStamp {
+  0% { transform: translate(-50%, -50%) scale(0) rotate(-12deg); opacity: 0; }
+  35% { transform: translate(-50%, -50%) scale(1.25) rotate(6deg); opacity: 1; }
+  45% { transform: translate(-50%, -50%) scale(1) rotate(-4deg); }
+  55% { transform: translate(-50%, -50%) scale(1.05) rotate(3deg); }
+  65% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 0; }
+}
+
+/* +2 Reverse: ikon panah bolak-balik terguling (flip horizontal berulang). */
+.ext-fx-2reverse {
+  background: radial-gradient(circle, #5fcf7d, #175c2a);
+  transform: translate(-50%, -50%) scale(0.5) scaleX(1);
+  animation: fxFlip 1.5s ease forwards;
+}
+@keyframes fxFlip {
+  0% { transform: translate(-50%, -50%) scale(0.5) scaleX(1); opacity: 0; }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1) scaleX(1); }
+  50% { transform: translate(-50%, -50%) scale(1) scaleX(-1); }
+  80% { transform: translate(-50%, -50%) scale(1) scaleX(1); }
+  100% { transform: translate(-50%, -50%) scale(1) scaleX(1); opacity: 0; }
+}
+
+/* Curi: ikon "menyambar" diagonal dari kanan-bawah ke tengah, seperti tangan
+   yang nyolong kartu lalu ditarik masuk. */
+.ext-fx-curi {
+  background: radial-gradient(circle, #f4de6b, #8a6c0c);
+  transform: translate(35vw, 25vh) scale(0.6) rotate(20deg);
+  animation: fxSnatch 1.3s cubic-bezier(.3,.6,.3,1) forwards;
+}
+@keyframes fxSnatch {
+  0% { transform: translate(35vw, 25vh) scale(0.5) rotate(25deg); opacity: 0; }
+  25% { opacity: 1; }
+  60% { transform: translate(-50%, -50%) scale(1.15) rotate(-8deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 0; }
+}
+
+/* Bom Waktu dioper: ikon melayang melengkung dari kiri ke kanan layar,
+   seperti dilempar dari satu pemain ke pemain lain. */
+.ext-fx-bombpass {
+  background: radial-gradient(circle, #ff7a5a, #6e0d0d);
+  transform: translate(-40vw, 10vh) scale(0.8);
+  animation: fxThrow 1.4s ease forwards;
+}
+@keyframes fxThrow {
+  0% { transform: translate(-40vw, 10vh) scale(0.8) rotate(0deg); opacity: 0; }
+  15% { opacity: 1; }
+  50% { transform: translate(0, -18vh) scale(1.05) rotate(180deg); }
+  100% { transform: translate(40vw, 10vh) scale(0.8) rotate(360deg); opacity: 0; }
+}
+
+/* Bom Waktu meledak: membesar drastis lalu "pecah" jadi transparan + layar
+   sedikit berguncang (lihat .screen-shake). */
+.ext-fx-bombexplode {
+  background: radial-gradient(circle, #ffdc5a, #ff3b3b 55%, #4a0000);
+  transform: translate(-50%, -50%) scale(0.5);
+  animation: fxExplode 0.9s cubic-bezier(.15,.9,.3,1) forwards;
+}
+@keyframes fxExplode {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 1; box-shadow: 0 0 0 0 rgba(255,60,60,0.6); }
+  55% { transform: translate(-50%, -50%) scale(2.4); opacity: 1; box-shadow: 0 0 0 40px rgba(255,60,60,0); }
+  100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+}
+.screen-shake { animation: screenShake 0.45s ease; }
+@keyframes screenShake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-6px, 4px); }
+  40% { transform: translate(6px, -4px); }
+  60% { transform: translate(-5px, -3px); }
+  80% { transform: translate(5px, 3px); }
+}
+
+/* Recall: ikon bersinar naik dari bawah seperti "membangkitkan" pemain. */
+.ext-fx-recall {
+  background: radial-gradient(circle, #ded9ff, #6a5acd);
+  transform: translate(-50%, 20vh) scale(0.6);
+  animation: fxRecall 1.6s ease forwards;
+}
+@keyframes fxRecall {
+  0% { transform: translate(-50%, 20vh) scale(0.5); opacity: 0; }
+  30% { opacity: 1; }
+  70% { transform: translate(-50%, -60%) scale(1.1); opacity: 1; box-shadow: 0 0 0 18px rgba(122,104,237,0.15); }
+  100% { transform: translate(-50%, -70%) scale(1); opacity: 0; }
+}
+
+@media (max-width: 720px) {
+  .card { width: 58px; height: 84px; font-size: 20px; }
+  .top-card-wrap .card { width: 70px; height: 100px; font-size: 24px; }
+  .deck-card { width: 58px; height: 84px; }
+  .center-area { gap: 14px; }
+  .hint-panel { max-width: 92vw; max-height: 84vh; }
+}
+
+.disconnect-banner {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 100;
+  display: none;
+  align-items: center; justify-content: center;
+}
+.disconnect-box {
+  background: #241a1a;
+  border: 1.5px solid var(--red);
+  border-radius: 16px;
+  padding: 26px 34px;
+  text-align: center;
+}
+.disconnect-box p { margin: 0 0 16px; font-size: 15px; }
+
+/* ---------------- HINT BUTTON & PANEL ---------------- */
+
+.hint-btn {
+  position: absolute; top: 14px; right: 16px;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid var(--gold);
+  background: rgba(15,45,35,0.85);
+  color: var(--gold);
+  font-weight: 900; font-size: 17px;
+  z-index: 7;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.hint-btn:hover { transform: scale(1.1); background: rgba(30,60,45,0.95); }
+
+.hint-panel {
+  max-width: 480px;
+  max-height: 78vh;
+  text-align: left;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.hint-panel h2 { text-align: center; margin-top: 0; flex-shrink: 0; }
+.hint-panel h3 { margin-bottom: 8px; }
+.close-x {
+  position: absolute; top: 10px; right: 12px;
+  background: none; border: none; font-size: 22px; color: #555; line-height: 1;
+}
+.close-x:hover { color: #000; }
+.hint-scroll {
+  overflow-y: auto;
+  padding-right: 10px;
+  margin-right: -10px;
+}
+.hint-list { padding-left: 20px; margin: 0 0 18px; font-size: 13.5px; line-height: 1.5; }
+.hint-list li { margin-bottom: 8px; }
+.hint-cards { display: flex; flex-direction: column; gap: 10px; }
+.hint-card-row { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.hint-card-row .card { flex-shrink: 0; box-shadow: none; border-width: 2px; }
+
+/* ---------------- CELEBRATION ---------------- */
+
+.celebration-layer {
+  position: fixed; inset: 0; pointer-events: none; z-index: 50;
+  overflow: hidden;
+}
+.confetti-piece {
+  position: absolute; top: -20px;
+  width: 9px; height: 14px;
+  opacity: 0.95;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(115vh) rotate(540deg); opacity: 0.2; }
+}
+
+.celebration-toast {
+  position: fixed; top: 90px; left: 50%;
+  transform: translateX(-50%) scale(0.85);
+  background: linear-gradient(180deg, var(--gold), #e8b93a);
+  color: var(--black);
+  padding: 14px 26px;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  z-index: 51;
+  opacity: 0;
+  animation: toastPop 2.6s ease forwards;
+  text-align: center;
+  white-space: nowrap;
+}
+@keyframes toastPop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.7) translateY(-10px); }
+  12% { opacity: 1; transform: translateX(-50%) scale(1.05) translateY(0); }
+  20% { transform: translateX(-50%) scale(1) translateY(0); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.95) translateY(-6px); }
+}
