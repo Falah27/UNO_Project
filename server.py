@@ -412,18 +412,19 @@ class ThreadingServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 
 def main():
-    # port = 8765
-    # if len(sys.argv) > 1:
-    #     try:
-    #         port = int(sys.argv[1])
-    #     except ValueError:
-    #         pass
-    port = int(os.environ.get("PORT", 8765))
+    port = 8765
     if len(sys.argv) > 1:
         try:
             port = int(sys.argv[1])
         except ValueError:
             pass
+
+    # port = int(os.environ.get("PORT", 8765))
+    # if len(sys.argv) > 1:
+    #     try:
+    #         port = int(sys.argv[1])
+    #     except ValueError:
+    #         pass
 
     threading.Thread(target=uno_timeout_watcher, daemon=True).start()
     threading.Thread(target=heartbeat_watcher, daemon=True).start()
