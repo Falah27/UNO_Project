@@ -39,6 +39,7 @@
   let lastSeenEventSeq = null;
   let extremeIntroTimer = null;
   let extremeIntroInterval = null;
+  let deckExtremeParticlesBuilt = false;
 
   const EXTREME_CARD_INFO = [
     {
@@ -481,17 +482,16 @@
   }
 
   function doQuit() {
-    // KELUAR: minta server hapus slot lobby agar user lama tidak nyangkut Offline.
+    localStorage.removeItem("clash_player_id");
+    localStorage.removeItem("clash_session_id");
+
     if (ws && ws.readyState === WebSocket.OPEN) {
       try { ws.send(JSON.stringify({ type: "leave_lobby" })); } catch (e) { /* ignore */ }
     }
-    // KELUAR: putus koneksi & bersihkan sesi tersimpan, balik ke layar awal.
-    localStorage.removeItem("clash_player_id");
-    localStorage.removeItem("clash_session_id");
     if (ws) {
-      try { ws.onclose = null; ws.close(); } catch (e) { /* ignore */ }
+      try { ws.onclose = null; ws.close(1000, "user_quit"); } catch (e) { /* ignore */ }
     }
-    location.reload();
+    setTimeout(() => { location.reload(); }, 150);
   }
 
   $("quitLobbyBtn").addEventListener("click", doQuit);
@@ -643,10 +643,12 @@
 
   function renderGame(state) {
     resetSelectionIfStateChanged(state);
+    $("screen-game").classList.toggle("extreme-arena", !!state.extreme_mode);
     renderMessage(state);
     renderPlayers(state);
     renderDirectionArrow(state);
     renderTopCardAndHistory(state);
+    renderDeckPile(state);
     $("deckCount").textContent = state.deck_count + " kartu";
     renderHand(state);
     // renderStash(state);
@@ -663,6 +665,36 @@
 
     prevTopCardKey = cardKey(state.top_card);
     prevCurrentPlayerId = state.current_player_id;
+  }
+
+  function renderDeckPile(state) {
+    const pile = $("deckPile");
+    if (!pile) return;
+    pile.classList.toggle("deck-extreme", !!state.extreme_mode);
+
+    if (state.extreme_mode && !deckExtremeParticlesBuilt) {
+      buildDeckExtremeParticles(pile);
+      deckExtremeParticlesBuilt = true;
+    } else if (!state.extreme_mode && deckExtremeParticlesBuilt) {
+      const layer = pile.querySelector(".deck-extreme-particles");
+      if (layer) layer.remove();
+      deckExtremeParticlesBuilt = false;
+    }
+  }
+
+  function buildDeckExtremeParticles(pile) {
+    const layer = document.createElement("div");
+    layer.className = "deck-extreme-particles";
+    const count = 6;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("span");
+      p.className = "deck-spark";
+      p.style.left = (10 + Math.random() * 80) + "%";
+      p.style.animationDelay = (Math.random() * 2.2).toFixed(2) + "s";
+      p.style.animationDuration = (1.8 + Math.random() * 1.4).toFixed(2) + "s";
+      layer.appendChild(p);
+    }
+    pile.appendChild(layer);
   }
 
   function checkCelebrations(state) {
@@ -714,6 +746,7 @@
 
   function renderPlayers(state) {
     const row = $("opponentsRow");
+    row.classList.toggle("extreme-theme", !!state.extreme_mode);
     row.innerHTML = "";
     state.players.forEach((p) => {
       const chip = document.createElement("div");
@@ -948,6 +981,15 @@
     "Recall": "RECALL",
   };
 
+  const STASH_ICONS = {
+    "Swap Rotasi": "🔀",
+    "+2 Skip": "⛔",
+    "+2 Reverse": "🔁",
+    "Curi": "🤏",
+    "Bom Waktu": "💣",
+    "Recall": "↩️",
+  };
+
   const STASH_NEEDS_TARGET = ["Curi", "Bom Waktu", "Recall"];
 
   function buildStashHandCardEl(item, clickable) {
@@ -955,7 +997,11 @@
     const slug = item.kind.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
     el.className = "card stash-inline stash-" + slug + (clickable ? " playable" : " disabled-stash");
     const label = STASH_LABELS[item.kind] || item.kind;
-    el.innerHTML = `<div class="val stash-inline-label">${label}</div>`;
+    const icon = STASH_ICONS[item.kind] || "✨";
+    el.innerHTML = `
+      <div class="stash-inline-icon">${icon}</div>
+      <div class="val stash-inline-label">${label}</div>
+    `;
     if (item.kind === "Bom Waktu" && item.turns_left !== null && item.turns_left !== undefined) {
       const badge = document.createElement("div");
       badge.className = "stash-timer";

@@ -217,28 +217,83 @@ button {
   z-index: 0;
 }
 
+/* ---------------- MODE EXTREME: ARENA (SELURUH MEJA IKUT BERTEMA) ---------------- */
+#screen-game.extreme-arena .table-bg {
+  background: radial-gradient(circle at 50% 42%, #5c1f66 0%, #260c30 55%, #150818 85%);
+}
+#screen-game.extreme-arena .table-bg::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 28%, rgba(255,80,200,0.14), transparent 62%);
+  animation: arenaExtremeGlow 4s ease-in-out infinite;
+}
+@keyframes arenaExtremeGlow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+#screen-game.extreme-arena .msg-bar {
+  border-color: #ff8ae0;
+  box-shadow: 0 0 14px rgba(255,80,220,0.25);
+}
+
+#screen-game.extreme-arena #arrowPath,
+#screen-game.extreme-arena #arrowHead {
+  stroke: #ff8ae0;
+  fill: #ff8ae0;
+}
+
+#screen-game.extreme-arena .hint-btn {
+  border-color: #ff8ae0;
+  color: #ff8ae0;
+}
+#screen-game.extreme-arena .hint-btn:hover {
+  background: rgba(90,20,90,0.5);
+}
+
+#screen-game.extreme-arena .quit-in-game-btn {
+  border-color: rgba(255,140,220,0.35);
+}
+
+#screen-game.extreme-arena .btn-draw {
+  background: linear-gradient(180deg, #f3d8ff, #c79bea);
+}
+
+/* ---------------- TABLE TOP (msg + chips + arrow) ---------------- */
+.table-top {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 90px 0;
+}
+
 .msg-bar {
-  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
   background: rgba(15,45,35,0.85);
   border: 1.5px solid var(--gold);
   border-radius: 12px;
   padding: 9px 22px;
   font-size: 13.5px;
-  z-index: 5;
   max-width: 82vw;
   text-align: center;
   transition: opacity 0.2s;
 }
 
 .opponents-row {
-  position: absolute; top: 60px; left: 0; right: 0;
   display: flex; justify-content: center; flex-wrap: wrap; gap: 12px;
   padding: 0 16px;
-  z-index: 4;
+}
+
+.direction-arrow {
+  width: 220px; opacity: 0.9;
 }
 
 .player-chip {
-  background: rgba(20,20,25,0.55);
+  background: rgba(10,14,12,0.72);
+  border-color: rgba(255,255,255,0.22);
   border: 2px solid rgba(255,255,255,0.15);
   border-radius: 14px;
   padding: 8px 14px;
@@ -280,10 +335,19 @@ button {
 .player-chip.offline { border-color: var(--red); opacity: 0.55; }
 .player-chip .pc-badge { font-size: 10px; margin-top: 2px; color: var(--gold); }
 
-.direction-arrow {
-  position: absolute; top: 116px; left: 50%; transform: translateX(-50%);
-  width: 220px; z-index: 3; opacity: 0.9;
+.opponents-row.extreme-theme .player-chip {
+  background: linear-gradient(165deg, rgba(70,20,90,0.75), rgba(20,6,30,0.85));
+  border-color: rgba(220,110,255,0.45);
 }
+.opponents-row.extreme-theme .player-chip.turn {
+  border-color: #ff9de8;
+  box-shadow: 0 0 18px rgba(255,90,220,0.55);
+  background: linear-gradient(165deg, rgba(120,30,130,0.8), rgba(40,8,50,0.9));
+}
+.opponents-row.extreme-theme .player-chip .pc-count {
+  color: #e9c6ff;
+}
+
 .arrow-svg {
   width: 100%; height: 24px; overflow: visible;
   transition: transform 0.4s ease;
@@ -396,6 +460,78 @@ button {
 .deck-count {
   position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%);
   font-size: 12px; color: #d5e3dc;
+}
+
+/* ---------------- MODE EXTREME: DECK PILE KHAS ---------------- */
+/* Deck normal tetap seperti semula (card-back ungu-navy biasa). Begitu
+   Extreme aktif, tumpukan kartu tarik berubah jadi "sumber energi" merah-ungu
+   yang berdenyut, dengan cincin glow di belakangnya dan percikan kecil yang
+   melayang naik - biar dari jauh pun kelihatan beda mode. */
+.deck-pile.deck-extreme {
+  position: relative;
+}
+.deck-pile.deck-extreme::before {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 130px; height: 130px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200,40,220,0.35), rgba(255,60,60,0.12) 55%, transparent 75%);
+  z-index: -1;
+  animation: deckExtremeGlow 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes deckExtremeGlow {
+  0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.92); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+}
+
+.deck-pile.deck-extreme .deck-card {
+  background:
+    repeating-linear-gradient(45deg, #3a1440, #3a1440 8px, #6e1050 8px, #6e1050 16px);
+  border-color: rgba(255,120,255,0.55);
+  box-shadow:
+    0 5px 0 rgba(0,0,0,0.35),
+    0 8px 14px rgba(0,0,0,0.35),
+    0 0 18px 3px rgba(220,50,180,0.55);
+  animation: deckExtremePulse 1.6s ease-in-out infinite;
+}
+@keyframes deckExtremePulse {
+  0%, 100% { box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 8px 14px rgba(0,0,0,0.35), 0 0 18px 3px rgba(220,50,180,0.5); }
+  50% { box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 8px 14px rgba(0,0,0,0.35), 0 0 30px 8px rgba(255,60,120,0.85); }
+}
+
+.deck-pile.deck-extreme .deck-count {
+  color: #ffcdf7;
+  font-weight: 800;
+  text-shadow: 0 0 6px rgba(220,60,200,0.8);
+}
+
+.deck-extreme-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 2;
+}
+.deck-spark {
+  position: absolute;
+  bottom: 10px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffe1ff, #d63bd6 70%);
+  box-shadow: 0 0 6px 2px rgba(220,60,220,0.7);
+  animation-name: deckSparkRise;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+  opacity: 0;
+}
+@keyframes deckSparkRise {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 0.8; }
+  100% { transform: translateY(-90px) scale(0.2); opacity: 0; }
 }
 
 .clash-btn-wrap { position: absolute; inset: 0; pointer-events: none; z-index: 8; }
@@ -934,29 +1070,106 @@ button {
 
 /* ---------------- STASH MENYATU DI TANGAN ---------------- */
 .card.stash-inline {
-  display: flex; align-items: center; justify-content: center;
-  text-align: center; padding: 6px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  text-align: center;
+  padding: 6px;
   color: var(--white);
+  border-width: 3px;
   text-shadow: -1px 0 0 #000, 1px 0 0 #000, 0 -1px 0 #000, 0 1px 0 #000;
   background: linear-gradient(165deg, #4a2d78, #241344);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Semua elemen isi kartu (ikon+label) ditaruh di atas layer tekstur ::before,
+   supaya pola dekoratif tidak menutupi teks. */
+.card.stash-inline > * { position: relative; z-index: 1; }
+
+.card.stash-inline::before {
+  content: "";
+  position: absolute; inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.32;
+}
+
+.stash-inline-icon {
+  font-size: 19px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.45));
+  text-shadow: none;
 }
 .card.stash-inline .stash-inline-label {
-  font-size: 12px;
-  line-height: 1.25;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  line-height: 1.15;
 }
 .card.stash-inline.disabled-stash { opacity: 0.55; }
+.card.stash-inline.disabled-stash::before { opacity: 0.18; }
 
-.card.stash-inline.stash-swaprotasi { background: linear-gradient(165deg, #4173dc, #1c3f80); }
-.card.stash-inline.stash-2skip { background: linear-gradient(165deg, #ea6b6b, #8f1f1f); }
-.card.stash-inline.stash-2reverse { background: linear-gradient(165deg, #41b45f, #175c2a); }
-.card.stash-inline.stash-curi {
-  background: linear-gradient(165deg, #ebcd46, #8a6c0c);
-  color: #221c04;
-  text-shadow: -1px 0 0 #fff8dc, 1px 0 0 #fff8dc, 0 -1px 0 #fff8dc, 0 1px 0 #fff8dc;
+/* Kartu spesial yang bisa dipakai (giliranmu) - border berdenyut halus khas
+   "kartu magic" biar kelihatan beda dari kartu UNO biasa yang cuma glow emas. */
+.card.stash-inline.playable {
+  animation: stashPlayablePulse 1.8s ease-in-out infinite;
 }
+@keyframes stashPlayablePulse {
+  0%, 100% { box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 8px 14px rgba(0,0,0,0.35), 0 0 0 0 rgba(255,255,255,0.35); }
+  50% { box-shadow: 0 5px 0 rgba(0,0,0,0.35), 0 8px 14px rgba(0,0,0,0.35), 0 0 14px 3px rgba(255,255,255,0.45); }
+}
+.card.stash-inline.playable:hover { transform: translateY(-14px); }
+
+/* --- Swap Rotasi: pola panah berputar (garis melengkung diagonal) --- */
+.card.stash-inline.stash-swaprotasi {
+  background: linear-gradient(165deg, #4173dc, #1c3f80);
+}
+.card.stash-inline.stash-swaprotasi::before {
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.5) 0 3px, transparent 3px 11px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,0.25) 0 3px, transparent 3px 11px);
+}
+
+/* --- +2 Skip: garis diagonal "hazard tape" khas rambu larangan --- */
+.card.stash-inline.stash-2skip {
+  background: linear-gradient(165deg, #ea6b6b, #8f1f1f);
+}
+.card.stash-inline.stash-2skip::before {
+  background: repeating-linear-gradient(-45deg, rgba(255,255,255,0.55) 0 6px, transparent 6px 16px);
+}
+
+/* --- +2 Reverse: pola chevron/panah gantian, kesan "bolak-balik" --- */
+.card.stash-inline.stash-2reverse {
+  background: linear-gradient(165deg, #41b45f, #175c2a);
+}
+.card.stash-inline.stash-2reverse::before {
+  background:
+    linear-gradient(135deg, transparent 45%, rgba(255,255,255,0.5) 45% 55%, transparent 55%),
+    linear-gradient(45deg, transparent 45%, rgba(255,255,255,0.35) 45% 55%, transparent 55%);
+  background-size: 22px 22px;
+}
+
+/* --- Curi: pola titik-titik "kilau" acak, kesan licik/menyambar --- */
+.card.stash-inline.stash-curi {
+  background: linear-gradient(165deg, #d4b62e, #6e5407);
+}
+.card.stash-inline.stash-curi .stash-inline-icon { text-shadow: none; }
+.card.stash-inline.stash-curi::before {
+  background-image: radial-gradient(rgba(255,255,255,0.75) 1.5px, transparent 1.5px);
+  background-size: 12px 12px;
+  background-position: 0 0, 6px 6px;
+}
+
+/* --- Bom Waktu: pola garis "sumbu" + pulsasi bahaya (tetap ada dari sebelumnya) --- */
 .card.stash-inline.stash-bomwaktu {
   background: linear-gradient(165deg, #ff5a5a, #6e0d0d);
   animation: bombPulse 1s ease-in-out infinite;
+}
+.card.stash-inline.stash-bomwaktu::before {
+  background: repeating-radial-gradient(circle at 30% 30%, rgba(255,255,255,0.5) 0 2px, transparent 2px 9px);
 }
 .card.stash-inline.stash-bomwaktu.critical {
   animation: bombPulseCritical 0.5s ease-in-out infinite;
@@ -970,10 +1183,28 @@ button {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.22); }
 }
+
+/* --- Recall: pancaran cahaya dari tengah, kesan "membangkitkan" --- */
 .card.stash-inline.stash-recall {
-  background: linear-gradient(165deg, #f7f7ff, #7b68ee);
-  color: #1b1640;
-  text-shadow: -1px 0 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, 0 1px 0 #fff;
+  background: linear-gradient(165deg, #9d90e8, #5643b0);
+}
+.card.stash-inline.stash-recall .stash-inline-icon { text-shadow: none; }
+.card.stash-inline.stash-recall::before {
+  background: conic-gradient(
+    from 0deg,
+    rgba(255,255,255,0.55) 0deg 8deg, transparent 8deg 30deg,
+    rgba(255,255,255,0.55) 30deg 38deg, transparent 38deg 60deg,
+    rgba(255,255,255,0.55) 60deg 68deg, transparent 68deg 90deg,
+    rgba(255,255,255,0.55) 90deg 98deg, transparent 98deg 120deg,
+    rgba(255,255,255,0.55) 120deg 128deg, transparent 128deg 150deg,
+    rgba(255,255,255,0.55) 150deg 158deg, transparent 158deg 180deg,
+    rgba(255,255,255,0.55) 180deg 188deg, transparent 188deg 210deg,
+    rgba(255,255,255,0.55) 210deg 218deg, transparent 218deg 240deg,
+    rgba(255,255,255,0.55) 240deg 248deg, transparent 248deg 270deg,
+    rgba(255,255,255,0.55) 270deg 278deg, transparent 278deg 300deg,
+    rgba(255,255,255,0.55) 300deg 308deg, transparent 308deg 330deg,
+    rgba(255,255,255,0.55) 330deg 338deg, transparent 338deg 360deg
+  );
 }
 
 /* Hand "tersentak" sebentar saat Swap Rotasi kena giliranmu. */

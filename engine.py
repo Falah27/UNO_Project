@@ -502,7 +502,7 @@ class GameRoom:
                 moved += 1
             safety += 1
         self.message = f"Giliran {self.current_player().name}."
-        self._tick_all_bombs()
+        
 
     def finish_game_if_needed(self):
         active = self.active_players()
@@ -775,8 +775,8 @@ class GameRoom:
             self.advance_turn(1)
             self.message = f"{player.name} main {len(played_cards)}x {primary_card.value}. Giliran {self.current_player().name}."
 
+        self._tick_bomb_for_player(player)
         self.start_uno_check_if_needed(player)
-        self.ensure_current_player_can_act()
         return True
 
     def draw_card(self, player_id):
@@ -790,6 +790,7 @@ class GameRoom:
         if self.pending_uno_player_id == player.player_id:
             self.pending_uno_player_id = None
             self.pending_uno_deadline_ms = 0
+        self._tick_bomb_for_player(player)
         self.advance_turn(1)
         self.message = f"{player.name} narik kartu. Giliran {self.current_player().name}."
         self.ensure_current_player_can_act()
@@ -853,8 +854,7 @@ class GameRoom:
             self.message = f"{player.name} sedang memilih kartu curian dari {target.name}..."
             return True
         elif kind == "Bom Waktu":
-            self._apply_bomb_pass(player, target)
-            self._emit_event("Bom Waktu Pass", actor=player, target=target)
+            self._apply_bomb_pass(player, target, item)
             self.advance_turn(1)
         elif kind == "Recall":
             recalled_name = target.name
@@ -868,6 +868,7 @@ class GameRoom:
             self.message = "Kartu extreme tidak dikenal."
             return False
 
+        self._tick_bomb_for_player(player)
         self.ensure_current_player_can_act()
         return True
     
@@ -964,7 +965,6 @@ class GameRoom:
             self.current_player_index = target_idx
             self.message = f"{player.name} pakai +2 Reverse! {target.name} kena +2. Giliran {target.name}."
             self._emit_event("+2 Reverse", actor=player, target=target)
-            self._tick_all_bombs()
             return
 
         self.direction *= -1
@@ -978,7 +978,6 @@ class GameRoom:
         self.current_player_index = target_idx
         self.message = f"{player.name} pakai +2 Reverse! Arah berbalik, {target.name} kena +2. Giliran {target.name}."
         self._emit_event("+2 Reverse", actor=player, target=target)
-        self._tick_all_bombs()
 
     def _finish_steal(self, player, target, card_index):
         """Eksekusi Curi setelah pemain benar2 pilih posisi kartu (buta -
@@ -997,16 +996,26 @@ class GameRoom:
         else:
             self.start_uno_check_if_needed(target)
 
+        self._tick_bomb_for_player(player)
         self.advance_turn(1)
         self.ensure_current_player_can_act()
 
-    def _apply_bomb_pass(self, player, target):
+    def _apply_bomb_pass(self, player, target, item):
+        current_turns = item.get("turns_left", BOM_WAKTU_TURNS)
+        new_turns = current_turns - 1
+        if new_turns <= 0:
+            player.draw_card(self.deck, 5)
+            self.message = f"\U0001F4A3 Bom Waktu milik {player.name} meledak duluan sebelum sempat dioper!"
+            self._emit_event("Bom Waktu Explode", actor=player)
+            return True
         target.stash.append({
             "id": uuid.uuid4().hex[:8],
             "kind": "Bom Waktu",
-            "turns_left": BOM_WAKTU_TURNS,
+            "turns_left": new_turns,
         })
-        self.message = f"{player.name} mengoper Bom Waktu ke {target.name}!"
+        self.message = f"{player.name} mengoper Bom Waktu ke {target.name}! Sisa {new_turns} giliran."
+        self._emit_event("Bom Waktu Pass", actor=player, target=target)
+        return False
 
     def _apply_recall(self, player, target):
         if target.player_id in self.finished_order:
@@ -1034,6 +1043,7 @@ class GameRoom:
         self.number_color_player_id = None
         self.pending_number_value = None
         self.pending_number_color_options = []
+        self._tick_bomb_for_player(player)
         self.advance_turn(1)
         self.message = f"{player.name} pilih {color}. Giliran {self.current_player().name}."
         self.start_uno_check_if_needed(player)
@@ -1053,6 +1063,7 @@ class GameRoom:
         self.current_color = color
         self.awaiting_wild_color = False
         self.wild_player_id = None
+        self._tick_bomb_for_player(player)
 
         if self.top_card is not None and self.top_card.value == "Wild Draw Four":
             # FITUR BARU: efek +4 - cari target aktif berikutnya, dia kena 4
@@ -1182,26 +1193,23 @@ class GameRoom:
             if len(self.top_card_history) > 6:
                 self.top_card_history.pop(0)
 
-    def _tick_all_bombs(self):
-        for player in self.players:
-            if not player.stash:
-                continue
-            if player.finished:
-                continue
-            remaining = []
-            exploded = False
-            for item in player.stash:
-                if item["kind"] == "Bom Waktu" and item.get("turns_left") is not None:
-                    item["turns_left"] -= 1
-                    if item["turns_left"] <= 0:
-                        player.draw_card(self.deck, 5)
-                        exploded = True
-                        continue
-                remaining.append(item)
-            player.stash = remaining
-            if exploded:
-                self.message = f"\U0001F4A3 Bom Waktu milik {player.name} meledak! Kena +5 kartu."
-                self._emit_event("Bom Waktu Explode", actor=player)
+    def _tick_bomb_for_player(self, player):
+        if player is None or not player.stash or player.finished:
+            return
+        remaining = []
+        exploded = False
+        for item in player.stash:
+            if item["kind"] == "Bom Waktu" and item.get("turns_left") is not None:
+                item["turns_left"] -= 1
+                if item["turns_left"] <= 0:
+                    player.draw_card(self.deck, 5)
+                    exploded = True
+                    continue
+            remaining.append(item)
+        player.stash = remaining
+        if exploded:
+            self.message = f"\U0001F4A3 Bom Waktu milik {player.name} meledak! Kena +5 kartu."
+            self._emit_event("Bom Waktu Explode", actor=player)
 
     # ---------------- BOT AI ----------------
     # FITUR BARU: main vs bot. Bot dipanggil dari server secara berkala
