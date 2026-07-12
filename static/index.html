@@ -2,9 +2,16 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#163d2c">
+<meta name="description" content="Clash of Card">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🃏</text></svg>">
 <title>Clash of Card</title>
 <link rel="stylesheet" href="/style.css">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
 
@@ -28,7 +35,10 @@
 <div id="screen-lobby" class="screen">
   <div class="lobby-card lobby-card-wide">
     <h2>Lobby</h2>
-
+    <div id="shareIpRow" class="share-ip-row" style="display:none;">
+      <span>Ajak teman: <code id="shareIpText">-</code></span>
+      <button id="copyIpBtn" class="btn btn-small">SALIN</button>
+    </div>
     <div class="lobby-columns">
       <!-- KOLOM KIRI: identitas + settingan room -->
       <div class="lobby-col-left">
@@ -101,7 +111,7 @@
   <div class="table-bg"></div>
 
   <div class="table-top">
-    <div id="msgBar" class="msg-bar"></div>
+    <div id="msgBar" class="msg-bar" role="status" aria-live="polite"></div>
     <div id="opponentsRow" class="opponents-row"></div>
     <div id="directionArrow" class="direction-arrow">
       <svg viewBox="0 0 200 40" class="arrow-svg">
@@ -111,9 +121,10 @@
     </div>
   </div>
 
+  <span id="pingBadge" class="ping-badge" title="Latensi ke server"></span>
   <button id="hintBtn" class="hint-btn" title="Cara main">?</button>
   <button id="quitInGameBtn" class="quit-in-game-btn" title="Keluar">Keluar</button>
-
+  
   <div class="center-area">
     <div id="historyStack" class="history-stack"></div>
     <div id="topCardWrap" class="top-card-wrap"></div>

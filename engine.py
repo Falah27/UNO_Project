@@ -231,13 +231,45 @@ class GameRoom:
         self.next_player_id = 1
         self.leader_id = None      # player pertama yang masih connect = "leader" lobby
 
+    def kick_lobby_player(self, requester_id, target_id):
+        # FITUR BARU: leader bisa buang slot pemain yang statusnya Offline di
+        # lobby - mencegah lobby menumpuk baris "Offline" yang tidak pernah
+        # balik, tanpa perlu tunggu mereka reconnect dulu untuk bisa KELUAR.
+        if requester_id != self.leader_id:
+            self.message = "Cuma leader yang bisa kick pemain."
+            return False
+        if self.started:
+            self.message = "Tidak bisa kick saat game sedang berjalan."
+            return False
+        info = self.lobby_players.get(target_id)
+        if info is None:
+            self.message = "Pemain tidak ditemukan."
+            return False
+        if info.get("connected"):
+            self.message = "Cuma bisa kick pemain yang statusnya Offline."
+            return False
+        self.remove_lobby_player(target_id)
+        self.message = f"{info.get('name', 'Pemain')} dikeluarkan dari lobby."
+        return True
     # ---------------- LOBBY ----------------
 
     def add_lobby_player(self, name):
+        base_name = (name or "Player").strip()[:20] or "Player"
+        existing_names = {
+            info["name"].strip().lower()
+            for pid, info in self.lobby_players.items()
+            if info.get("connected")
+        }
+        final_name = base_name
+        suffix = 2
+        while final_name.strip().lower() in existing_names:
+            final_name = f"{base_name} ({suffix})"
+            suffix += 1
+
         player_id = self.next_player_id
         self.next_player_id += 1
         self.lobby_order.append(player_id)
-        self.lobby_players[player_id] = {"name": name or f"Player {player_id}", "connected": True}
+        self.lobby_players[player_id] = {"name": final_name, "connected": True}
         if self.leader_id is None:
             self.leader_id = player_id
         return player_id

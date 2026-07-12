@@ -158,7 +158,8 @@ button {
   border-radius: 8px;
   border: 2px solid rgba(255,255,255,0.2);
   background: rgba(255,255,255,0.08);
-  color: var(--white);
+  color: #f5f5f5; 
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -570,10 +571,11 @@ button {
 }
 
 .hand-row {
-  display: flex; justify-content: center; 
+  display: flex; justify-content: center;
   padding: 20px 10px 6px;
   max-width: 96vw;
   overflow-x: auto;
+  scrollbar-width: thin;
 }
 .hand-row .card { margin-left: -18px; }
 .hand-row .card:first-child { margin-left: 0; }
@@ -1258,3 +1260,90 @@ button {
   pointer-events: none;
   will-change: transform, opacity;
 }
+
+/* TAMBAHKAN: focus states untuk aksesibilitas keyboard */
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* TAMBAHKAN: safe-area untuk HP bernotch */
+.bottom-area {
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+}
+.msg-bar {
+  top: calc(14px + env(safe-area-inset-top));
+}
+.hint-btn, .quit-in-game-btn {
+  top: calc(14px + env(safe-area-inset-top));
+}
+
+/* PERBAIKI: stash-row supaya tidak menutupi hand di layar sempit */
+@media (max-width: 720px) {
+  .stash-row {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    max-height: none;
+    right: auto; bottom: auto;
+    margin-top: 8px;
+    max-width: 92vw;
+  }
+  .hand-and-stash-wrap {
+    flex-direction: column;
+  }
+  .opponents-row { top: 54px; gap: 8px; }
+  .direction-arrow { top: 96px; width: 160px; }
+}
+
+/* TAMBAHKAN: spinner untuk state "menyambung" */
+.btn-loading {
+  position: relative;
+  color: transparent !important;
+}
+.btn-loading::after {
+  content: "";
+  position: absolute; inset: 0;
+  margin: auto;
+  width: 18px; height: 18px;
+  border: 3px solid rgba(0,0,0,0.25);
+  border-top-color: var(--black);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* TAMBAHKAN: styling tombol salin IP di lobby */
+.share-ip-row {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-size: 12.5px;
+}
+.share-ip-row code { color: var(--gold); font-weight: 700; word-break: break-all; }
+.share-ip-row button { flex-shrink: 0; }
+
+.lobby-kick-btn {
+  margin-left: auto;
+  background: linear-gradient(180deg, #e07a7a, var(--red));
+  color: #fff;
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+.ping-badge {
+  position: absolute; top: 14px; right: 108px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 11px; font-weight: 700;
+  background: rgba(20,20,25,0.55);
+  border: 1.5px solid rgba(255,255,255,0.2);
+  z-index: 7;
+}
+.ping-badge.ping-good { color: #6fce89; border-color: #6fce89; }
+.ping-badge.ping-mid  { color: #f4de85; border-color: #f4de85; }
+.ping-badge.ping-bad  { color: #ea6b6b; border-color: #ea6b6b; }

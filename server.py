@@ -26,6 +26,14 @@ from engine import GameRoom, COLORS
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
+CONTENT_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".js": "application/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".svg": "image/svg+xml",
+}
+
 room = GameRoom()
 room_lock = threading.Lock()
 
@@ -147,14 +155,6 @@ def heartbeat_watcher():
 
 def handle_message(player_id, data):
     msg_type = data.get("type")
-
-    # STABILITY FIX: sebelumnya broadcast_lobby()/broadcast_game() dipanggil
-    # DI DALAM blok "with room_lock:" - karena broadcast itu isinya kirim
-    # data ke socket (blocking I/O), kalau ada 1 koneksi yang lemot/macet,
-    # room_lock bisa ketahan lama dan bikin SEMUA pemain lain freeze nunggu
-    # giliran mereka diproses. Sekarang: semua perubahan state dikerjakan di
-    # dalam lock (cepat, murni di memori), lalu broadcast dikerjakan SESUDAH
-    # lock dilepas, jadi kirim-lambat ke 1 client tidak menahan pemain lain.
     do_broadcast_lobby = False
     do_broadcast_game = False
 
@@ -207,6 +207,24 @@ def handle_message(player_id, data):
                 room.back_to_lobby()
                 do_broadcast_lobby = True
 
+        elif msg_type == "kick_player":
+            if player_id == room.leader_id and not room.started:
+                target_id = data.get("target_player_id")
+                if isinstance(target_id, int):
+                    ok = room.kick_lobby_player(player_id, target_id)
+                    if ok:
+                        # Beri tahu koneksi yang dikick (kalau kebetulan masih ada
+                        # socket zombie yang belum ke-detect closed) lalu putus paksa.
+                        with connections_lock:
+                            kicked_conn = connections.pop(target_id, None)
+                        if kicked_conn is not None:
+                            try:
+                                kicked_conn.send(json.dumps({"type": "error", "message": "Kamu dikeluarkan dari lobby oleh leader."}))
+                                kicked_conn.close()
+                            except Exception:
+                                pass
+                    do_broadcast_lobby = True
+                    
         elif room.started:
             if msg_type == "play_cards":
                 indices = data.get("indices", [])
@@ -415,8 +433,16 @@ class Handler(socketserver.BaseRequestHandler):
                     data = json.loads(message)
                 except (ValueError, TypeError):
                     continue
-                if not isinstance(data, dict):
+
+                if data.get("type") == "ping_check":
+                    # Dibalas langsung di luar room_lock - murni echo timestamp, tidak
+                    # menyentuh state game sama sekali, jadi aman dipakai buat ukur RTT asli.
+                    try:
+                        conn.send(json.dumps({"type": "pong_check", "t": data.get("t")}))
+                    except ws.WebSocketClosed:
+                        break
                     continue
+
                 handle_message(player_id, data)
 
         except ws.WebSocketClosed:

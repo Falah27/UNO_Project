@@ -41,6 +41,18 @@
   let extremeIntroInterval = null;
   let deckExtremeParticlesBuilt = false;
 
+  let firstTimeHintShown = false;
+
+  let pingIntervalId = null;
+  let lastLatencyMs = null;
+  
+  function startPingLoop() {
+    clearInterval(pingIntervalId);
+    pingIntervalId = setInterval(() => {
+      send({ type: "ping_check", t: Date.now() });
+    }, 4000);
+  }
+
   const EXTREME_CARD_INFO = [
     {
       kind: "Swap Rotasi", slug: "swaprotasi", icon: "🔀",
@@ -91,14 +103,30 @@
       });
     }
 
-    // FITUR BARU: grid kartu Extreme (tampilan sama dipakai di panel hint
-    // maupun popup penjelasan awal game) - kontennya statis, jadi cukup
-    // dirender sekali di awal, bukan tiap kali state game berubah.
     renderExtremeCardGrid($("hintExtremeCards"));
     renderExtremeCardGrid($("extremeIntroCards"));
 
     const introCloseBtn = $("extremeIntroCloseBtn");
     if (introCloseBtn) introCloseBtn.addEventListener("click", closeExtremeIntro);
+
+    const shareRow = $("shareIpRow");
+    const shareText = $("shareIpText");
+    const copyBtn = $("copyIpBtn");
+    if (shareRow && shareText && copyBtn) {
+      shareText.textContent = location.origin;
+      shareRow.style.display = "flex";
+      copyBtn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(location.origin);
+          copyBtn.textContent = "TERSALIN!";
+        } catch (e) {
+          // Fallback kalau clipboard API diblokir (mis. bukan HTTPS)
+          shareText.style.userSelect = "text";
+          copyBtn.textContent = "SELECT MANUAL";
+        }
+        setTimeout(() => { copyBtn.textContent = "SALIN"; }, 1600);
+      });
+    }
   });
 
   // ---------------- MODE EXTREME: KARTU, POPUP INTRO, ANIMASI EFEK ----------------
@@ -307,7 +335,10 @@
         name: effectiveName,
         player_id: savedId ? parseInt(savedId, 10) : null,
         session_id: savedSession || null
-      }));
+      },
+      
+      startPingLoop()
+    ));
     };
 
     ws.onmessage = (evt) => {
@@ -319,19 +350,15 @@
     ws.onclose = () => {
       const hadJoined = myPlayerId !== null;
       ws = null;
-
-      // Kalau koneksi gagal sebelum berhasil join, jangan kunci tombol GABUNG.
-      // User bisa perbaiki alamat/server lalu klik lagi tanpa reload manual.
       if (!hadJoined) {
         const joinBtn = $("joinBtn");
         const joinError = $("joinError");
-        if (joinBtn) joinBtn.disabled = false;
+        if (joinBtn) { joinBtn.disabled = false; joinBtn.classList.remove("btn-loading"); }
         if (joinError) joinError.textContent = "Gagal terhubung ke host. Pastikan server masih berjalan.";
         return;
       }
-
-      // Kalau sudah join lalu putus, tampilkan banner di layar mana pun.
       showDisconnectBanner();
+      clearInterval(pingIntervalId);
     };
 
     ws.onerror = () => {};
@@ -369,6 +396,8 @@
         localStorage.setItem("clash_player_id", String(myPlayerId));
         localStorage.setItem("clash_session_id", data.session_id || "");
         localStorage.setItem("clash_name", myName);
+        const jb = $("joinBtn");
+        if (jb) jb.classList.remove("btn-loading");
         break;
       case "lobby_state":
         latestLobbyState = data;
@@ -385,6 +414,10 @@
       case "error":
         showGlobalError(data.message);
         break;
+      case "pong_check":
+        lastLatencyMs = Date.now() - data.t;
+        updatePingBadge();
+        break;
     }
   }
 
@@ -394,7 +427,7 @@
   $("nameInput").addEventListener("keydown", (e) => { if (e.key === "Enter") doJoin(); });
 
   function doJoin() {
-    if (ws) return; // sudah pernah connect, cegah klik dobel bikin 2 koneksi sekaligus
+    if (ws) return;
     const name = $("nameInput").value.trim();
     if (!name) {
       $("joinError").textContent = "Isi nama dulu ya.";
@@ -403,6 +436,7 @@
     myName = name;
     $("joinError").textContent = "";
     $("joinBtn").disabled = true;
+    $("joinBtn").classList.add("btn-loading"); // NEW: kasih spinner selagi connect
     connect();
   }
 
@@ -523,6 +557,7 @@
 
     const container = $("lobbyPlayers");
     container.innerHTML = "";
+ 
     state.players.forEach((p) => {
       const row = document.createElement("div");
       row.className = "lobby-player-row" + (p.connected ? "" : " offline");
@@ -531,6 +566,18 @@
         ${p.is_leader ? '<span class="crown">&#9733;</span>' : ""}
         <span class="pname">${escapeHtml(p.name)}${p.id === myPlayerId ? " (kamu)" : ""}</span>
       `;
+      // FITUR BARU: leader bisa kick slot Offline langsung dari lobby.
+      if (isLeader && !p.connected && p.id !== myPlayerId) {
+        const kickBtn = document.createElement("button");
+        kickBtn.className = "btn btn-small lobby-kick-btn";
+        kickBtn.textContent = "KICK";
+        kickBtn.addEventListener("click", () => {
+          if (confirm(`Kick ${p.name} dari lobby?`)) {
+            send({ type: "kick_player", target_player_id: p.id });
+          }
+        });
+        row.appendChild(kickBtn);
+      }
       container.appendChild(row);
     });
 
@@ -659,6 +706,7 @@
     checkCelebrations(state);
     checkExtremeEffect(state);
     maybeShowExtremeIntro(state);
+    maybeShowFirstTimeHint(state);
 
     const hintExtreme = $("hintExtremeSection");
     if (hintExtreme) hintExtreme.style.display = state.extreme_mode ? "block" : "none";
@@ -1180,6 +1228,25 @@
     });
   }
 
+  // FITUR BARU: onboarding otomatis. Tampilkan panel "Cara Main" sekali saja
+  // seumur browser (pakai localStorage), begitu pemain pertama kali betul2
+  // masuk ke layar game - ditunda supaya tidak tabrakan dgn popup Extreme
+  // Mode (yang juga overlay di screen yang sama).
+  function maybeShowFirstTimeHint(state) {
+    if (firstTimeHintShown) return;
+    if (localStorage.getItem("clash_hint_v1_seen")) return;
+    firstTimeHintShown = true;
+    localStorage.setItem("clash_hint_v1_seen", "1");
+
+    const delay = state.extreme_mode ? 5600 : 1100; // nunggu intro extreme selesai dulu kalau ada
+    setTimeout(() => {
+      const hintOverlay = $("hintOverlay");
+      // Jangan timpa overlay lain yang lagi aktif (color picker, target picker, dst).
+      const anyOtherOverlayOpen = ["colorPickerOverlay", "targetPickerOverlay", "gameOverOverlay", "extremeIntroOverlay"]
+        .some((id) => $(id) && $(id).style.display === "flex");
+      if (!anyOtherOverlayOpen && hintOverlay) hintOverlay.style.display = "flex";
+    }, delay);
+  }
   // FITUR BARU: Curi 2 langkah - setelah target dipilih, tampilkan sejumlah
   // kartu tertutup (terbalik) sebanyak kartu di tangan target, biar pemain
   // sendiri yang klik salah satunya (buta, tidak tahu isinya).
@@ -1254,3 +1321,4 @@
     return div.innerHTML;
   }
 })();
+
