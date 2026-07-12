@@ -1,0 +1,2 @@
+# Tidak ada dependensi eksternal - server.py, engine.py, ws.py murni
+# Python 3 standard library.
