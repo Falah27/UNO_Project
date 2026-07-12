@@ -33,18 +33,6 @@ room_lock = threading.Lock()
 connections = {}
 connections_lock = threading.Lock()
 
-def _enable_tcp_keepalive(sock):
-    try:
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        if hasattr(socket, "TCP_KEEPIDLE"):
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 20)
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 5)
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
-        elif hasattr(socket, "TCP_KEEPALIVE"):
-            # macOS pakai nama opsi berbeda dari Linux.
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE, 20)
-    except OSError:
-        pass  # kalau platform tidak dukung opsi ini, biarkan (jangan crash)
 
 def get_local_ip():
     # Trik umum: "connect" ke alamat luar (tidak benar2 mengirim data apapun,
@@ -74,18 +62,40 @@ def _send_safe(player_id, payload_dict):
 
 
 def broadcast_lobby():
-    state = room.build_lobby_state()
-    for pid in list(room.lobby_order):
+    # STABILITY FIX (race condition): dulu build_lobby_state() dipanggil DI
+    # LUAR room_lock, padahal ia membaca room.lobby_order/room.lobby_players
+    # dkk. Karena ada beberapa thread lain (bot_watcher, uno_timeout_watcher,
+    # koneksi client lain lewat handle_message) yang boleh MENGUBAH room
+    # kapan saja lewat room_lock masing-masing, membaca tanpa lock bisa
+    # menangkap state "robek" (sebagian sudah berubah, sebagian belum) dan
+    # terkirim ke client sebagai snapshot yang salah/tidak konsisten.
+    # Fix: snapshot state (murni operasi memori, cepat) dibuat DI DALAM
+    # lock, baru pengiriman ke socket (I/O, bisa lambat) dilakukan DI LUAR
+    # lock - jadi prinsip STABILITY FIX yang lama (I/O tidak boleh menahan
+    # room_lock) tetap terjaga, sekaligus pembacaan state jadi aman.
+    with room_lock:
+        state = room.build_lobby_state()
+        pids = list(room.lobby_order)
+    for pid in pids:
         _send_safe(pid, state)
 
 
 def broadcast_game():
-    if not room.players:
-        return
-    for p in room.players:
-        state = room.build_state_for(p.player_id)
+    # STABILITY FIX (race condition): sama seperti broadcast_lobby() di atas
+    # - dulu iterasi `for p in room.players` + build_state_for() per pemain
+    # dilakukan TANPA room_lock, sehingga list room.players (atau atribut di
+    # dalamnya) bisa berubah di tengah loop akibat thread lain (misalnya
+    # leader menekan "back_to_lobby"/"rematch" persis saat broadcast sedang
+    # berjalan, yang me-reset room.players jadi []). Sekarang seluruh
+    # snapshot per-viewer dibangun sekali di dalam lock lewat
+    # build_all_states(), baru dikirim ke socket di luar lock.
+    with room_lock:
+        if not room.players:
+            return
+        states = room.build_all_states()
+    for player_id, state in states.items():
         if state is not None:
-            _send_safe(p.player_id, state)
+            _send_safe(player_id, state)
 
 
 def send_error(player_id, message):
@@ -94,50 +104,43 @@ def send_error(player_id, message):
 
 # ---------------- UNO TIMEOUT WATCHER ----------------
 
-import traceback
-
 def uno_timeout_watcher():
     while True:
         time.sleep(0.25)
-        try:
-            changed = False
-            with room_lock:
-                if room.started and not room.game_over:
-                    changed = room.check_uno_timeout()
-                    changed = room.check_steal_pick_timeout() or changed
-            if changed:
-                broadcast_game()
-        except Exception:
-            print("[uno_timeout_watcher] ERROR:")
-            traceback.print_exc()
+        changed = False
+        with room_lock:
+            if room.started and not room.game_over:
+                changed = room.check_uno_timeout()
+                changed = room.check_steal_pick_timeout() or changed
+        if changed:
+            broadcast_game()
 
 
 def bot_watcher():
+    # FITUR BARU: main vs bot. Dicek berkala; kasih jeda sedikit (0.6 detik)
+    # supaya gerakan bot kerasa "mikir dulu", bukan instan kayak robot kaku.
     while True:
         time.sleep(0.6)
-        try:
-            acted = False
-            with room_lock:
-                if room.started and not room.game_over:
-                    acted = room.maybe_run_bot_turn()
-            if acted:
-                broadcast_game()
-        except Exception:
-            print("[bot_watcher] ERROR:")
-            traceback.print_exc()
+        with room_lock:
+            if not room.started or room.game_over:
+                continue
+            acted = room.maybe_run_bot_turn()
+        if acted:
+            broadcast_game()
 
 
 def heartbeat_watcher():
+    # STABILITY: sebagian router/AP WiFi rumahan diam-diam menghapus entri
+    # koneksi TCP dari tabel NAT-nya kalau tidak ada trafik dalam beberapa
+    # waktu (umumnya 60-120 detik), walau kedua sisi (server & browser) masih
+    # hidup normal. Kirim ping kecil tiap 15 detik ke semua koneksi supaya
+    # selalu ada trafik yang lewat, jadi router tidak menganggapnya "mati".
     while True:
         time.sleep(15)
-        try:
-            with connections_lock:
-                conns = list(connections.values())
-            for conn in conns:
-                conn.send_ping()
-        except Exception:
-            print("[heartbeat_watcher] ERROR:")
-            traceback.print_exc()
+        with connections_lock:
+            conns = list(connections.values())
+        for conn in conns:
+            conn.send_ping()
 
 
 # ---------------- MESSAGE HANDLING ----------------
@@ -324,8 +327,16 @@ class Handler(socketserver.BaseRequestHandler):
         if response is None:
             return
         self.request.sendall(response)
+
+        # BUG FIX (paling penting): self.request.settimeout(30) di awal handle()
+        # tadinya cuma dimaksudkan buat jaga-jaga handshake HTTP yang nggak
+        # kunjung selesai. Tapi timeout itu nempel ke SEMUA recv() berikutnya,
+        # termasuk recv() WebSocket jangka panjang. Akibatnya: kalau lobby diam
+        # >30 detik tanpa ada yang klik apa-apa, server mikir koneksi itu mati
+        # dan MEMUTUS SENDIRI padahal koneksinya baik-baik saja. Ini penyebab
+        # "kepututus tiba-tiba padahal cuma diem di lobby". Dihapus di sini
+        # supaya recv() boleh menunggu tanpa batas waktu selama koneksi hidup.
         self.request.settimeout(None)
-        _enable_tcp_keepalive(self.request)
 
         conn = ws.WebSocketConnection(self.request)
 
@@ -334,7 +345,23 @@ class Handler(socketserver.BaseRequestHandler):
             first_msg = conn.recv()
             if first_msg is None:
                 return
-            data = json.loads(first_msg)
+
+            # HARDENING: pesan pertama (join/rejoin) dulu langsung di-
+            # json.loads() tanpa pengaman - kalau client kirim payload bukan
+            # JSON valid (bug klien lain, salah kirim, atau iseng), exception
+            # ValueError/TypeError itu TIDAK ketangkap oleh blok except di
+            # bawah (yang cuma nangkep error socket/WebSocket), jadi nyembur
+            # jadi traceback kotor di log server walau koneksinya sendiri
+            # tetap ditutup benar oleh `finally`. Sekarang ditolak rapi di
+            # sini: koneksi ditutup, tidak ada log traceback.
+            try:
+                data = json.loads(first_msg)
+            except (ValueError, TypeError):
+                conn.close()
+                return
+            if not isinstance(data, dict):
+                conn.close()
+                return
 
             with room_lock:
                 incoming_pid = data.get("player_id")
@@ -388,6 +415,8 @@ class Handler(socketserver.BaseRequestHandler):
                     data = json.loads(message)
                 except (ValueError, TypeError):
                     continue
+                if not isinstance(data, dict):
+                    continue
                 handle_message(player_id, data)
 
         except ws.WebSocketClosed:
@@ -418,13 +447,6 @@ def main():
             port = int(sys.argv[1])
         except ValueError:
             pass
-
-    # port = int(os.environ.get("PORT", 8765))
-    # if len(sys.argv) > 1:
-    #     try:
-    #         port = int(sys.argv[1])
-    #     except ValueError:
-    #         pass
 
     threading.Thread(target=uno_timeout_watcher, daemon=True).start()
     threading.Thread(target=heartbeat_watcher, daemon=True).start()

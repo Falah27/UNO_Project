@@ -22,6 +22,13 @@ OPCODE_CLOSE = 0x8
 OPCODE_PING = 0x9
 OPCODE_PONG = 0xA
 
+# HARDENING: batas atas ukuran payload 1 frame yang mau kita terima. Game ini
+# cuma kirim JSON kecil (state room/kartu), jadi 1 MB sudah jauh lebih dari
+# cukup. Tanpa batas ini, client yang salah kirim/nakal bisa klaim panjang
+# payload raksasa (field length 64-bit) dan bikin _recv_exact menunggu tanpa
+# henti / server mencoba alokasi buffer sangat besar.
+MAX_FRAME_PAYLOAD = 1 << 20  # 1 MB
+
 
 class WebSocketClosed(Exception):
     pass
@@ -71,6 +78,12 @@ def recv_frame(sock):
         length = struct.unpack(">H", _recv_exact(sock, 2))[0]
     elif length == 127:
         length = struct.unpack(">Q", _recv_exact(sock, 8))[0]
+
+    # HARDENING: tolak frame yang mengklaim payload lebih besar dari batas
+    # wajar - putuskan koneksi ini secara bersih daripada mencoba membaca
+    # data sebanyak itu (lihat MAX_FRAME_PAYLOAD di atas).
+    if length > MAX_FRAME_PAYLOAD:
+        raise WebSocketClosed("frame payload too large")
 
     if masked:
         mask_key = _recv_exact(sock, 4)
