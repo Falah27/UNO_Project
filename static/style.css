@@ -11,6 +11,20 @@
   --black: #191919;
 }
 
+body.extreme-theme {
+  --gold: #ff6a3c;
+  --table-dark: #241344;
+  --table-light: #4a2d78;
+}
+
+#screen-lobby,
+#screen-game .table-bg,
+.btn-primary,
+.mode-btn.active,
+.player-chip.turn {
+  transition: background 0.6s ease, box-shadow 0.6s ease, border-color 0.6s ease, transform 0.15s ease;
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -764,6 +778,7 @@ button {
   z-index: 60;
   animation: extFxFlashFade ease-out forwards;
 }
+
 .ext-fx-flash-red {
   background: radial-gradient(circle at 50% 45%, rgba(255,60,60,0.35), transparent 70%);
   animation-duration: 0.25s;
@@ -775,6 +790,28 @@ button {
 @keyframes extFxFlashFade {
   0% { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* ---------------- ANIMASI LEMPAR BOM (chip ke chip) ---------------- */
+
+.ext-fx-bomb-projectile {
+  position: fixed;
+  font-size: 26px;
+  pointer-events: none;
+  z-index: 58;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.55)) drop-shadow(0 0 10px rgba(255,90,40,0.5));
+  will-change: transform, left, top;
+}
+
+/* Kilatan singkat di chip target begitu bom "mendarat" - nunjukin siapa
+   yang barusan kena oper, sinkron sama waktu impact di animateBombThrow. */
+.player-chip.bomb-impact-flash {
+  animation: bombImpactPulse 0.5s ease-out;
+}
+@keyframes bombImpactPulse {
+  0% { box-shadow: 0 0 0 0 rgba(255,60,30,0.9); transform: scale(1); }
+  40% { box-shadow: 0 0 0 14px rgba(255,60,30,0); transform: scale(1.12); }
+  100% { box-shadow: 0 0 0 0 rgba(255,60,30,0); transform: scale(1); }
 }
 
 .ext-fx-toast {

@@ -289,6 +289,58 @@
     setTimeout(() => flash.remove(), duration);
   }
 
+  function animateBombThrow(actorId, targetId, onDone) {
+    const layer = $("extremeEffectLayer");
+    const fromChip = document.querySelector(`.player-chip[data-player-id="${actorId}"]`);
+    const toChip = document.querySelector(`.player-chip[data-player-id="${targetId}"]`);
+    if (!layer || !fromChip || !toChip) {
+      if (onDone) onDone();
+      return;
+    }
+
+    const fromRect = fromChip.getBoundingClientRect();
+    const toRect = toChip.getBoundingClientRect();
+    const startX = fromRect.left + fromRect.width / 2;
+    const startY = fromRect.top + fromRect.height / 2;
+    const endX = toRect.left + toRect.width / 2;
+    const endY = toRect.top + toRect.height / 2;
+    const arcHeight = 110 + Math.random() * 50;
+
+    const bomb = document.createElement("div");
+    bomb.className = "ext-fx-bomb-projectile";
+    bomb.textContent = "\uD83D\uDCA3";
+    layer.appendChild(bomb);
+
+    const duration = 650;
+    const startTime = performance.now();
+
+    function step(now) {
+      const t = Math.min(1, (now - startTime) / duration);
+      const x = startX + (endX - startX) * t;
+      const arc = Math.sin(Math.PI * t) * arcHeight;
+      const y = startY + (endY - startY) * t - arc;
+      const rot = t * 560;
+      const scale = 0.8 + Math.sin(Math.PI * t) * 0.35;
+      bomb.style.left = x + "px";
+      bomb.style.top = y + "px";
+      bomb.style.transform = `translate(-50%, -50%) rotate(${rot}deg) scale(${scale})`;
+
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        bomb.remove();
+        spawnParticles({
+          count: 14, emoji: "\uD83D\uDD25", spread: 130, duration: 0.7,
+          originX: endX + "px", originY: endY + "px",
+        });
+        toChip.classList.add("bomb-impact-flash");
+        setTimeout(() => toChip.classList.remove("bomb-impact-flash"), 500);
+        if (onDone) onDone();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
   function triggerExtremeEffect(ev) {
     const layer = $("extremeEffectLayer");
     if (!layer) return;
@@ -297,11 +349,13 @@
     const labelFn = EXTREME_EFFECT_LABEL[ev.kind];
     const label = labelFn ? labelFn(ev) : ev.kind;
 
-    const badge = document.createElement("div");
-    badge.className = "ext-fx-badge ext-fx-" + slug;
-    badge.innerHTML = `<span class="ext-fx-icon">${icon}</span>`;
-    layer.appendChild(badge);
-    setTimeout(() => badge.remove(), 1900);
+    if (ev.kind !== "Bom Waktu Pass") {
+      const badge = document.createElement("div");
+      badge.className = "ext-fx-badge ext-fx-" + slug;
+      badge.innerHTML = `<span class="ext-fx-icon">${icon}</span>`;
+      layer.appendChild(badge);
+      setTimeout(() => badge.remove(), 1900);
+    }
 
     const toast = document.createElement("div");
     toast.className = "ext-fx-toast ext-fx-toast-" + slug;
@@ -325,7 +379,7 @@
         spawnParticles({ count: 16, colors: ["#f4de6b", "#ffd98a"], spread: 240, duration: 1.0, originX: "50%", originY: "40%" });
         break;
       case "Bom Waktu Pass":
-        spawnParticles({ count: 10, emoji: "\uD83D\uDD25", spread: 260, duration: 1.1 });
+        animateBombThrow(ev.actor_id, ev.target_id);
         break;
       case "Bom Waktu Explode":
         spawnParticles({ count: 26, colors: ["#ffdc5a", "#ff7a3a", "#ff3b3b", "#4a0000"], spread: 340, duration: 1.0 });
@@ -377,6 +431,10 @@
   function showScreen(name) {
     document.querySelectorAll(".screen").forEach((el) => el.classList.remove("active"));
     $("screen-" + name).classList.add("active");
+  }
+
+  function applyThemeClass(isExtreme) {
+    document.body.classList.toggle("extreme-theme", !!isExtreme);
   }
 
   // ---------------- WEBSOCKET ----------------
@@ -561,6 +619,7 @@
       document.querySelectorAll("#modeToggle .mode-btn").forEach((b) => {
         b.classList.toggle("active", b.dataset.mode === btn.dataset.mode);
       });
+      applyThemeClass(localExtremeMode);
       send({
         type: "set_settings",
         pack_count: localPackCount,
@@ -602,6 +661,7 @@
 
   function renderLobby(state) {
     const isLeader = state.leader_id === myPlayerId;
+    applyThemeClass(state.extreme_mode);
     localPackCount = state.pack_count;
     localCardsEach = state.cards_each;
     localBotCount = state.bot_count || 0;
@@ -761,6 +821,7 @@
   function renderGame(state) {
     resetSelectionIfStateChanged(state);
     $("screen-game").classList.toggle("extreme-arena", !!state.extreme_mode);
+    applyThemeClass(state.extreme_mode);
     renderMessage(state);
     renderPlayers(state);
     renderDirectionArrow(state);

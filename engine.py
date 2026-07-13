@@ -136,9 +136,6 @@ class Player:
         self.finished = False
         self.uno_called = False
         self.is_bot = is_bot  # FITUR BARU: main vs bot
-        # FITUR BARU: MODE EXTREME. Kartu spesial yang ke-draw disimpan di
-        # sini, terpisah dari hand biasa. Tiap item: {"id", "kind", "turns_left"}.
-        # "turns_left" cuma dipakai Bom Waktu (None untuk kartu lain).
         self.stash = []
         self.recall_used = False
 
@@ -167,13 +164,7 @@ class GameRoom:
     persis seperti versi desktop yang cuma bisa hosting 1 game per proses)."""
 
     def __init__(self):
-        # STABILITY FIX: session_id unik dibuat ulang setiap kali proses server
-        # dijalankan/direstart. Browser menyimpan session_id ini bersama
-        # player_id-nya di localStorage. Kalau server sempat direstart (atau
-        # user buka game dari sesi lama), session_id yang tersimpan di browser
-        # tidak akan cocok lagi dengan session_id server yang baru, jadi browser
-        # otomatis dianggap "pemain baru" - TIDAK BISA nabrak/nyangkut ke id
-        # pemain lain yang kebetulan dapat nomor yang sama di sesi baru.
+
         self.session_id = uuid.uuid4().hex[:10]
 
         self.players = []          # list[Player], urutan = urutan giliran
@@ -207,34 +198,26 @@ class GameRoom:
         self.pending_uno_deadline_ms = 0
         self.uno_timeout_ms = 4000
 
-        self.pending_uno_deadlines = {}  # {player_id: deadline_ms}
+        self.pending_uno_deadlines = {}  
         self.uno_timeout_ms = 4000
 
         self.pack_count = 1
         self.cards_each = 7
         self.max_players = 6
-        self.bot_count = 0  # FITUR BARU: jumlah bot yang mengisi kursi kosong
-        self.extreme_mode = False  # FITUR BARU: mode Extreme (kartu spesial)
-        self.extreme_pack_count = 1  # jumlah paket kartu spesial saat Extreme aktif
+        self.bot_count = 0  
+        self.extreme_mode = False  
+        self.extreme_pack_count = 1  
 
-        # FITUR BARU: penanda "kejadian" kartu Extreme dipakai (Swap Rotasi,
-        # +2 Skip, dst) supaya frontend bisa nampilin animasi efek yang beda2
-        # per jenis kartu ke SEMUA pemain, bukan cuma yang makai. game_session_id
-        # dipakai buat tahu "game baru dimulai" (popup penjelasan Extreme mode).
         self.game_session_id = 0
         self.event_seq = 0
         self.last_event = None
-
-        # Lobby: player_id -> {"name":..., "connected":...}
-        self.lobby_order = []      # urutan join, elemen = player_id
+       
+        self.lobby_order = []      
         self.lobby_players = {}
         self.next_player_id = 1
-        self.leader_id = None      # player pertama yang masih connect = "leader" lobby
+        self.leader_id = None      
 
     def kick_lobby_player(self, requester_id, target_id):
-        # FITUR BARU: leader bisa buang slot pemain yang statusnya Offline di
-        # lobby - mencegah lobby menumpuk baris "Offline" yang tidak pernah
-        # balik, tanpa perlu tunggu mereka reconnect dulu untuk bisa KELUAR.
         if requester_id != self.leader_id:
             self.message = "Cuma leader yang bisa kick pemain."
             return False

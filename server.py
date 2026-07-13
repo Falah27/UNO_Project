@@ -415,6 +415,7 @@ class Handler(socketserver.BaseRequestHandler):
                 conn.close()
                 return
 
+            reject_reason = None
             with room_lock:
                 incoming_pid = data.get("player_id")
                 incoming_session = data.get("session_id")
@@ -428,32 +429,34 @@ class Handler(socketserver.BaseRequestHandler):
                     room.mark_lobby_reconnected(player_id)
                 else:
                     if room.started:
-                        conn.send(json.dumps({"type": "error", "message": "Game sudah berjalan, tidak bisa join baru."}))
-                        return
-                    name = str(data.get("name") or "Player")[:20]
-                    reclaimed_id = room.find_disconnected_lobby_player_by_name(name)
-                    if reclaimed_id is not None:
-                        player_id = reclaimed_id
-                        room.mark_lobby_reconnected(player_id)
-                        room.rename_player(player_id, name)
+                        reject_reason = "Game sudah berjalan, tidak bisa join baru."
                     else:
-                        if room.connected_lobby_count() >= room.max_players:
-                            conn.send(json.dumps({"type": "error", "message": "Lobby penuh."}))
-                            return
-                        player_id = room.add_lobby_player(name)
+                        name = str(data.get("name") or "Player")[:20]
+                        reclaimed_id = room.find_disconnected_lobby_player_by_name(name)
+                        if reclaimed_id is not None:
+                            player_id = reclaimed_id
+                            room.mark_lobby_reconnected(player_id)
+                            room.rename_player(player_id, name)
+                        elif room.connected_lobby_count() >= room.max_players:
+                            reject_reason = "Lobby penuh."
+                        else:
+                            player_id = room.add_lobby_player(name)
+
+            if reject_reason is not None:
+                conn.send(json.dumps({"type": "error", "message": reject_reason}))
+                return
 
             with connections_lock:
                 connections[player_id] = conn
 
             conn.send(json.dumps({"type": "joined", "player_id": player_id, "session_id": room.session_id, "name": room.lobby_players.get(player_id, {}).get("name", "Player")}))
 
+            initial_state = None
             with room_lock:
                 if room.started:
-                    state = room.build_state_for(player_id)
-                    if state:
-                        conn.send(json.dumps(state))
-                else:
-                    pass
+                    initial_state = room.build_state_for(player_id)
+            if initial_state is not None:
+                conn.send(json.dumps(initial_state))
 
             broadcast_lobby()
             if room.started:
