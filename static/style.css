@@ -726,6 +726,57 @@ button {
   overflow: hidden;
 }
 
+/* ---------------- ANIMASI DRAMATIS: PARTIKEL & FLASH ---------------- */
+
+.ext-fx-particle {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: extFxParticleFly cubic-bezier(.15,.7,.3,1) forwards;
+}
+.ext-fx-particle-emoji {
+  font-size: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+.ext-fx-particle-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255,255,255,0.4);
+}
+
+@keyframes extFxParticleFly {
+  0% {
+    transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(0.6);
+    opacity: 0;
+  }
+  15% { opacity: 1; }
+  70% { opacity: 1; }
+  100% {
+    transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+.ext-fx-flash {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  animation: extFxFlashFade ease-out forwards;
+}
+.ext-fx-flash-red {
+  background: radial-gradient(circle at 50% 45%, rgba(255,60,60,0.35), transparent 70%);
+  animation-duration: 0.25s;
+}
+.ext-fx-flash-explode {
+  background: radial-gradient(circle at 50% 45%, rgba(255,220,90,0.55), rgba(255,60,60,0.25) 55%, transparent 80%);
+  animation-duration: 0.4s;
+}
+@keyframes extFxFlashFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 .ext-fx-toast {
   position: fixed; top: 130px; left: 50%;
   transform: translateX(-50%);
@@ -749,12 +800,13 @@ button {
 
 .ext-fx-badge {
   position: fixed; top: 40%; left: 50%;
-  width: 74px; height: 74px;
+  width: 92px; height: 92px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
-  font-size: 34px;
-  box-shadow: 0 0 0 4px rgba(255,255,255,0.15), 0 10px 30px rgba(0,0,0,0.5);
+  font-size: 42px;
+  box-shadow: 0 0 0 6px rgba(255,255,255,0.18), 0 14px 38px rgba(0,0,0,0.55);
 }
+
 .ext-fx-icon { display: block; }
 
 /* Swap Rotasi: ikon berputar penuh sambil membesar-mengecil, ngasih kesan

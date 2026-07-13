@@ -19,6 +19,7 @@ import socketserver
 import sys
 import threading
 import time
+import random
 
 import ws
 from engine import GameRoom, COLORS
@@ -110,6 +111,27 @@ def send_error(player_id, message):
     _send_safe(player_id, {"type": "error", "message": message})
 
 
+BOT_THINK_MIN_SEC = 0.8
+BOT_THINK_MAX_SEC = 2.3
+
+_bot_pending_key = None   # penanda "keputusan" bot yang sedang ditunggu
+_bot_ready_at = 0.0        # timestamp kapan boleh dieksekusi
+
+
+def _current_bot_decision_key():
+    """Bikin kunci unik yang berubah tiap kali bot dihadapkan pada keputusan
+    BARU - dipakai buat tahu kapan harus mulai hitung ulang jeda mikir."""
+    if not room.players:
+        return None
+    if room.awaiting_steal_pick:
+        return ("steal", room.steal_player_id, room.steal_target_id)
+    if room.awaiting_wild_color:
+        return ("wild", room.wild_player_id)
+    if room.awaiting_number_color:
+        return ("numcolor", room.number_color_player_id, room.pending_number_value)
+    cp = room.current_player()
+    return ("turn", cp.player_id, room.game_session_id, len(cp.hand)) 
+
 # ---------------- UNO TIMEOUT WATCHER ----------------
 
 def uno_timeout_watcher():
@@ -125,24 +147,36 @@ def uno_timeout_watcher():
 
 
 def bot_watcher():
-    # FITUR BARU: main vs bot. Dicek berkala; kasih jeda sedikit (0.6 detik)
-    # supaya gerakan bot kerasa "mikir dulu", bukan instan kayak robot kaku.
+    global _bot_pending_key, _bot_ready_at
     while True:
-        time.sleep(0.6)
+        time.sleep(0.3)
+        acted = False
         with room_lock:
             if not room.started or room.game_over:
+                _bot_pending_key = None
                 continue
+
+            key = _current_bot_decision_key()
+            now = time.time()
+
+            if key != _bot_pending_key:
+                # Keputusan baru terdeteksi - mulai "mikir", jangan langsung main.
+                _bot_pending_key = key
+                _bot_ready_at = now + random.uniform(BOT_THINK_MIN_SEC, BOT_THINK_MAX_SEC)
+                continue
+
+            if now < _bot_ready_at:
+                continue  # masih "mikir"
+
             acted = room.maybe_run_bot_turn()
+            if acted:
+                _bot_pending_key = None
+
         if acted:
             broadcast_game()
 
 
 def heartbeat_watcher():
-    # STABILITY: sebagian router/AP WiFi rumahan diam-diam menghapus entri
-    # koneksi TCP dari tabel NAT-nya kalau tidak ada trafik dalam beberapa
-    # waktu (umumnya 60-120 detik), walau kedua sisi (server & browser) masih
-    # hidup normal. Kirim ping kecil tiap 15 detik ke semua koneksi supaya
-    # selalu ada trafik yang lewat, jadi router tidak menganggapnya "mati".
     while True:
         time.sleep(15)
         with connections_lock:

@@ -233,11 +233,67 @@
     "Recall": "RECALL!",
   };
 
+  // FITUR BARU: ANIMASI DRAMATIS. Partikel kecil yang nyebar dari titik
+  // tengah badge efek, ngasih kesan "ledakan visual" - dipakai ulang di
+  // semua jenis efek Extreme biar konsisten tapi tetap terasa beda-beda
+  // (lewat parameter emoji/warna/jarak sebar yang beda per kind).
+  function spawnParticles(opts) {
+    const layer = $("extremeEffectLayer");
+    if (!layer) return;
+    const {
+      count = 14,
+      emoji = "\u2728",
+      colors = null,
+      spread = 220,
+      duration = 1.1,
+      originX = "50%",
+      originY = "40%",
+    } = opts;
+
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("div");
+      p.className = "ext-fx-particle";
+      const angle = (Math.PI * 2 * i) / count + (Math.random() * 0.6 - 0.3);
+      const dist = spread * (0.5 + Math.random() * 0.6);
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      const rot = (Math.random() * 720 - 360).toFixed(0);
+      const dur = duration * (0.75 + Math.random() * 0.5);
+
+      p.style.left = originX;
+      p.style.top = originY;
+      p.style.setProperty("--dx", dx.toFixed(0) + "px");
+      p.style.setProperty("--dy", dy.toFixed(0) + "px");
+      p.style.setProperty("--rot", rot + "deg");
+      p.style.animationDuration = dur + "s";
+
+      if (colors) {
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.classList.add("ext-fx-particle-dot");
+      } else {
+        p.textContent = emoji;
+        p.classList.add("ext-fx-particle-emoji");
+      }
+
+      layer.appendChild(p);
+      setTimeout(() => p.remove(), dur * 1000 + 100);
+    }
+  }
+
+  function flashScreen(colorClass, duration = 350) {
+    const layer = $("extremeEffectLayer");
+    if (!layer) return;
+    const flash = document.createElement("div");
+    flash.className = "ext-fx-flash " + colorClass;
+    layer.appendChild(flash);
+    setTimeout(() => flash.remove(), duration);
+  }
+
   function triggerExtremeEffect(ev) {
     const layer = $("extremeEffectLayer");
     if (!layer) return;
     const slug = EXTREME_EFFECT_SLUG[ev.kind] || "generic";
-    const icon = EXTREME_EFFECT_ICON[ev.kind] || "✨";
+    const icon = EXTREME_EFFECT_ICON[ev.kind] || "\u2728";
     const labelFn = EXTREME_EFFECT_LABEL[ev.kind];
     const label = labelFn ? labelFn(ev) : ev.kind;
 
@@ -245,7 +301,7 @@
     badge.className = "ext-fx-badge ext-fx-" + slug;
     badge.innerHTML = `<span class="ext-fx-icon">${icon}</span>`;
     layer.appendChild(badge);
-    setTimeout(() => badge.remove(), 1700);
+    setTimeout(() => badge.remove(), 1900);
 
     const toast = document.createElement("div");
     toast.className = "ext-fx-toast ext-fx-toast-" + slug;
@@ -253,26 +309,40 @@
     layer.appendChild(toast);
     setTimeout(() => toast.remove(), 2400);
 
-    const bigText = document.createElement("div");
-    bigText.className = "ext-fx-bigtext ext-fx-bigtext-" + slug;
-    bigText.textContent = EXTREME_EFFECT_BIGTEXT[ev.kind] || ev.kind.toUpperCase();
-    layer.appendChild(bigText);
-    setTimeout(() => bigText.remove(), 1300);
+    // FITUR BARU: ANIMASI DRAMATIS - kepribadian visual beda per kartu.
+    switch (ev.kind) {
+      case "Swap Rotasi":
+        spawnParticles({ count: 10, emoji: "\uD83C\uDCCF", spread: 180, duration: 1.3 });
+        break;
+      case "+2 Skip":
+        spawnParticles({ count: 8, colors: ["#f08a8a", "#a02b2b"], spread: 160, duration: 0.9 });
+        flashScreen("ext-fx-flash-red", 250);
+        break;
+      case "+2 Reverse":
+        spawnParticles({ count: 12, emoji: "\u27A1\uFE0F", spread: 200, duration: 1.2 });
+        break;
+      case "Curi":
+        spawnParticles({ count: 16, colors: ["#f4de6b", "#ffd98a"], spread: 240, duration: 1.0, originX: "50%", originY: "40%" });
+        break;
+      case "Bom Waktu Pass":
+        spawnParticles({ count: 10, emoji: "\uD83D\uDD25", spread: 260, duration: 1.1 });
+        break;
+      case "Bom Waktu Explode":
+        spawnParticles({ count: 26, colors: ["#ffdc5a", "#ff7a3a", "#ff3b3b", "#4a0000"], spread: 340, duration: 1.0 });
+        flashScreen("ext-fx-flash-explode", 400);
+        break;
+      case "Recall":
+        spawnParticles({ count: 14, emoji: "\u2726", spread: 200, duration: 1.5, originY: "60%" });
+        break;
+      default:
+        spawnParticles({ count: 10, spread: 180 });
+    }
 
     if (ev.kind === "Bom Waktu Explode") {
       const stage = $("screen-game");
       if (stage) {
         stage.classList.add("screen-shake");
         setTimeout(() => stage.classList.remove("screen-shake"), 450);
-      }
-    }
-
-    if (ev.kind === "Swap Rotasi") {
-      triggerSwapBurst(layer);
-      const handRow = $("handRow");
-      if (handRow) {
-        handRow.classList.add("hand-swapping");
-        setTimeout(() => handRow.classList.remove("hand-swapping"), 480);
       }
     }
   }

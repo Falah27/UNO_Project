@@ -1,7 +1,7 @@
 {
   "name": "Clash of Card",
   "short_name": "ClashCard",
-  "description": "Game kartu UNO-like multiplayer LAN tanpa install.",
+  "description": "-- by Josjis --",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0e1f18",

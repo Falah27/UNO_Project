@@ -885,7 +885,7 @@ class GameRoom:
             self.message = f"{player.name} sedang memilih kartu curian dari {target.name}..."
             return True
         elif kind == "Bom Waktu":
-            self._apply_bomb_pass(player, target)
+            self._apply_bomb_pass(player, target, item.get("turns_left"))
             self._emit_event("Bom Waktu Pass", actor=player, target=target)
             self.advance_turn(1)
         elif kind == "Recall":
@@ -1032,13 +1032,15 @@ class GameRoom:
         self.advance_turn(1)
         self.ensure_current_player_can_act()
 
-    def _apply_bomb_pass(self, player, target):
+    def _apply_bomb_pass(self, player, target, turns_left=None):
+        if turns_left is None:
+            turns_left = BOM_WAKTU_TURNS
         target.stash.append({
             "id": uuid.uuid4().hex[:8],
             "kind": "Bom Waktu",
-            "turns_left": BOM_WAKTU_TURNS,
+            "turns_left": turns_left,
         })
-        self.message = f"{player.name} mengoper Bom Waktu ke {target.name}!"
+        self.message = f"{player.name} mengoper Bom Waktu ke {target.name}! Sisa {turns_left} giliran sebelum meledak."
 
     def _apply_recall(self, player, target):
         if target.player_id in self.finished_order:
